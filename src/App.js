@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 
 const PHASES = [
@@ -45,6 +45,20 @@ function daysDiff(date) {
   return Math.round((today - d) / 86400000);
 }
 
+function formatCurrency(n) {
+  if (!n) return "$0";
+  return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function calcMonthlyInterest(amount, rate) {
+  return (amount * (rate / 100)) / 12;
+}
+
+function calcDailyInterest(amount, rate) {
+  return (amount * (rate / 100)) / 365;
+}
+
+// Icons
 const IconHardHat = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 18h20v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2z"/><path d="M12 2a8 8 0 0 1 8 8v2H4v-2a8 8 0 0 1 8-8z"/><path d="M12 2v10"/></svg>;
 const IconPlus = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 const IconBack = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>;
@@ -54,11 +68,19 @@ const IconWarn = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="non
 const IconUpload = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
 const IconFile = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
 const IconChevron = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>;
+const IconCamera = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>;
+const IconUsers = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+const IconDollar = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
+const IconLink = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+const IconDocs = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+const IconClock = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
 
 const labelStyle = { display: "block", fontSize: 11, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" };
 const fieldStyle = { width: "100%", background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, color: "#e2e8f0", fontSize: 14, padding: "10px 12px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" };
 const dateInputStyle = { background: "#111827", border: "1px solid #374151", borderRadius: 6, color: "#9ca3af", fontSize: 11, padding: "4px 6px", width: "100%", fontFamily: "'DM Sans', sans-serif", outline: "none", colorScheme: "dark" };
+const tabBtnStyle = (active) => ({ padding: "8px 16px", borderRadius: 8, border: "none", background: active ? "#f59e0b" : "transparent", color: active ? "#000" : "#64748b", fontSize: 13, fontWeight: active ? 700 : 400, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" });
 
+// Auth Screen
 function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -106,50 +128,175 @@ function AuthScreen() {
   );
 }
 
-function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
+// Investor Portal View
+function InvestorView({ token }) {
+  const [lot, setLot] = useState(null);
+  const [phases, setPhases] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadData();
+  }, [token]);
+
+  const loadData = async () => {
+    const { data: tokenData } = await supabase.from("investor_tokens").select("*").eq("token", token).single();
+    if (!tokenData) { setError("Invalid or expired link."); setLoading(false); return; }
+    const { data: lotData } = await supabase.from("lots").select("*").eq("id", tokenData.lot_id).single();
+    if (lotData) setLot(lotData);
+    const { data: phasesData } = await supabase.from("phases").select("*").eq("lot_id", tokenData.lot_id);
+    if (phasesData) setPhases(phasesData.sort((a, b) => PHASES.indexOf(a.phase_name) - PHASES.indexOf(b.phase_name)));
+    const { data: photosData } = await supabase.from("phase_photos").select("*").eq("lot_id", tokenData.lot_id).order("created_at", { ascending: false });
+    if (photosData) setPhotos(photosData);
+    setLoading(false);
+  };
+
+  const getPhotoUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
+
+  if (loading) return <div style={{ minHeight: "100vh", background: "#0a0f1a", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontFamily: "'DM Sans', sans-serif" }}>Loading...</div>;
+  if (error) return <div style={{ minHeight: "100vh", background: "#0a0f1a", display: "flex", alignItems: "center", justifyContent: "center", color: "#f87171", fontFamily: "'DM Sans', sans-serif" }}>{error}</div>;
+
+  const prog = getOverallProgress(phases);
+  const complete = phases.filter(p => p.status === STATUS.COMPLETE);
+  const inProgress = phases.filter(p => p.status === STATUS.IN_PROGRESS);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0f1a", color: "#e5e7eb", fontFamily: "'DM Sans', sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap'); * { box-sizing: border-box; } body { margin: 0; }`}</style>
+      <div style={{ background: "linear-gradient(180deg, #0f172a 0%, #0a0f1a 100%)", borderBottom: "1px solid #1e293b", padding: "24px 24px" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto" }}>
+          <div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Project Update</div>
+          <h1 style={{ margin: 0, fontSize: 26, fontFamily: "'DM Serif Display', serif", color: "#f1f5f9", fontWeight: 400 }}>{lot?.address || "Development Project"}</h1>
+          {lot?.owner && <div style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}>{lot.owner}</div>}
+        </div>
+      </div>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
+          {[
+            { label: "Overall Progress", value: `${prog.pct}%`, color: "#10b981" },
+            { label: "Phases Complete", value: `${prog.complete}/${prog.total}`, color: "#f1f5f9" },
+            { label: "In Progress", value: prog.inProgress, color: "#f59e0b" },
+          ].map(s => (
+            <div key={s.label} style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: "16px" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: s.color, fontFamily: "'DM Serif Display', serif" }}>{s.value}</div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: "16px", marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 13, color: "#64748b" }}>Construction Progress</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#10b981" }}>{prog.pct}%</span>
+          </div>
+          <div style={{ background: "#1e293b", borderRadius: 99, height: 10, overflow: "hidden" }}>
+            <div style={{ width: `${prog.pct}%`, height: "100%", background: "linear-gradient(90deg, #059669, #10b981)", borderRadius: 99 }} />
+          </div>
+        </div>
+        {inProgress.length > 0 && (
+          <div style={{ background: "#292006", border: "1px solid #f59e0b44", borderRadius: 12, padding: "16px", marginBottom: 24 }}>
+            <div style={{ fontSize: 12, color: "#f59e0b", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Currently In Progress</div>
+            {inProgress.map(p => <div key={p.id} style={{ fontSize: 14, color: "#e5e7eb", marginBottom: 4 }}>{p.phase_name}</div>)}
+          </div>
+        )}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Phase Status</div>
+          {phases.map(phase => {
+            const cfg = STATUS_CONFIG[phase.status];
+            return (
+              <div key={phase.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid #1e293b" }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: cfg.dot, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 14, color: phase.status === STATUS.COMPLETE ? "#6b7280" : "#e5e7eb", textDecoration: phase.status === STATUS.COMPLETE ? "line-through" : "none" }}>{phase.phase_name}</span>
+                <span style={{ fontSize: 12, color: cfg.dot, fontWeight: 600 }}>{cfg.label}</span>
+                {phase.projected_end && <span style={{ fontSize: 11, color: "#475569" }}>{phase.projected_end}</span>}
+              </div>
+            );
+          })}
+        </div>
+        {photos.length > 0 && (
+          <div>
+            <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Project Photos</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8 }}>
+              {photos.map(photo => (
+                <div key={photo.id} onClick={() => window.open(getPhotoUrl(photo.file_path), "_blank")} style={{ borderRadius: 8, overflow: "hidden", cursor: "pointer", aspectRatio: "1", background: "#1e293b" }}>
+                  <img src={getPhotoUrl(photo.file_path)} alt={photo.caption || photo.file_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div style={{ marginTop: 32, paddingTop: 16, borderTop: "1px solid #1e293b", fontSize: 11, color: "#374151", textAlign: "center" }}>
+          Powered by Dev Tracker
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Phase Row
+function PhaseRow({ phase, lotId, onUpdate, isMobile, user }) {
   const [expanded, setExpanded] = useState(false);
-  const [files, setFiles] = useState([]);
+  const [photos, setPhotos] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [files, setFiles] = useState([]);
   const overdue = isPhaseOverdue(phase);
   const cfg = STATUS_CONFIG[phase.status];
   const diff = overdue ? daysDiff(phase.projected_end) : null;
+  const photoInputRef = useRef(null);
 
-  useEffect(() => { loadFiles(); }, []);
+  useEffect(() => { loadPhotos(); loadFiles(); }, []);
+
+  const loadPhotos = async () => {
+    const { data } = await supabase.from("phase_photos").select("*").eq("phase_id", phase.id).order("created_at", { ascending: false });
+    if (data) setPhotos(data);
+  };
 
   const loadFiles = async () => {
     const { data } = await supabase.from("files").select("*").eq("lot_id", lotId).eq("phase_name", phase.phase_name);
     if (data) setFiles(data);
   };
 
+  const logActivity = async (action, details) => {
+    await supabase.from("activity_log").insert({
+      lot_id: lotId, phase_id: phase.id,
+      user_id: user.id, user_email: user.email,
+      action, details
+    });
+  };
+
   const cycleStatus = async () => {
     const order = [STATUS.NOT_STARTED, STATUS.IN_PROGRESS, STATUS.COMPLETE];
     const newStatus = order[(order.indexOf(phase.status) + 1) % 3];
     await supabase.from("phases").update({ status: newStatus }).eq("id", phase.id);
+    await logActivity("status_change", `${phase.phase_name} changed to ${STATUS_CONFIG[newStatus].label}`);
     onUpdate();
   };
 
   const updateField = async (field, value) => {
     await supabase.from("phases").update({ [field]: value || null }).eq("id", phase.id);
+    await logActivity("date_change", `${phase.phase_name} ${field.replace(/_/g, " ")} set to ${value}`);
     onUpdate();
   };
 
-  const uploadFile = async (e) => {
+  const uploadPhoto = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
-    const path = `${lotId}/${phase.phase_name}/${Date.now()}_${file.name}`;
+    const path = `photos/${lotId}/${phase.id}/${Date.now()}_${file.name}`;
     const { error } = await supabase.storage.from("lot-files").upload(path, file);
     if (!error) {
-      await supabase.from("files").insert({ lot_id: lotId, phase_name: phase.phase_name, file_name: file.name, file_path: path });
-      loadFiles();
+      await supabase.from("phase_photos").insert({
+        lot_id: lotId, phase_id: phase.id,
+        file_name: file.name, file_path: path,
+        uploaded_by: user.id, uploaded_by_email: user.email
+      });
+      await logActivity("photo_upload", `Photo uploaded to ${phase.phase_name}`);
+      loadPhotos();
     }
     setUploading(false);
   };
 
-  const openFile = async (path) => {
-    const { data } = supabase.storage.from("lot-files").getPublicUrl(path);
-    window.open(data.publicUrl, "_blank");
-  };
+  const getPhotoUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
 
   if (isMobile) {
     return (
@@ -160,13 +307,19 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, color: overdue ? "#fca5a5" : phase.status === STATUS.COMPLETE ? "#6b7280" : "#e5e7eb", textDecoration: phase.status === STATUS.COMPLETE ? "line-through" : "none", marginBottom: 3 }}>{phase.phase_name}</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               <span style={{ fontSize: 11, color: overdue ? "#ef4444" : cfg.dot, fontWeight: 600 }}>{overdue ? `${diff}d overdue` : cfg.label}</span>
               {phase.projected_end && <span style={{ fontSize: 11, color: "#475569" }}>Due {phase.projected_end}</span>}
-              {files.length > 0 && <span style={{ fontSize: 11, color: "#60a5fa" }}>{files.length} file{files.length > 1 ? "s" : ""}</span>}
+              {photos.length > 0 && <span style={{ fontSize: 11, color: "#60a5fa" }}>{photos.length} photo{photos.length > 1 ? "s" : ""}</span>}
             </div>
           </div>
-          <div style={{ color: "#475569", transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}><IconChevron /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={e => { e.stopPropagation(); photoInputRef.current?.click(); }} style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, color: "#94a3b8", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+              <IconCamera />
+            </button>
+            <div style={{ color: "#475569", transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}><IconChevron /></div>
+          </div>
+          <input ref={photoInputRef} type="file" accept="image/*" capture="environment" onChange={uploadPhoto} style={{ display: "none" }} />
         </div>
         {expanded && (
           <div style={{ background: "#0d1526", border: "1px solid #1e293b", borderTop: "none", borderRadius: "0 0 12px 12px", padding: 14 }}>
@@ -177,33 +330,42 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
               <div><div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase", marginBottom: 4 }}>Act. End</div><input type="date" defaultValue={phase.actual_end || ""} onBlur={e => updateField("actual_end", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f" }} /></div>
             </div>
             <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", background: "#111827", marginBottom: 10 }} />
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 13, color: "#94a3b8" }}>
-                <IconUpload />{uploading ? "Uploading..." : "Upload File"}
-                <input type="file" onChange={uploadFile} style={{ display: "none" }} />
+            <div style={{ display: "flex", gap: 8, marginBottom: photos.length > 0 ? 10 : 0 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 13, color: "#94a3b8", flex: 1, justifyContent: "center" }}>
+                <IconCamera />{uploading ? "Uploading..." : "Take Photo"}
+                <input type="file" accept="image/*" capture="environment" onChange={uploadPhoto} style={{ display: "none" }} />
               </label>
-              {files.map(f => (
-                <button key={f.id} onClick={() => openFile(f.file_path)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, padding: "8px 10px", cursor: "pointer", fontSize: 12, color: "#60a5fa" }}>
-                  <IconFile />{f.file_name}
-                </button>
-              ))}
+              <label style={{ display: "flex", alignItems: "center", gap: 6, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 13, color: "#94a3b8", flex: 1, justifyContent: "center" }}>
+                <IconUpload />Upload
+                <input type="file" accept="image/*" onChange={uploadPhoto} style={{ display: "none" }} />
+              </label>
             </div>
+            {photos.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                {photos.map(photo => (
+                  <div key={photo.id} onClick={() => window.open(getPhotoUrl(photo.file_path), "_blank")} style={{ borderRadius: 8, overflow: "hidden", cursor: "pointer", aspectRatio: "1", background: "#1e293b" }}>
+                    <img src={getPhotoUrl(photo.file_path)} alt={photo.file_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
     );
   }
 
+  // Desktop
   return (
     <div style={{ marginBottom: 4 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 120px", gap: 7, alignItems: "center", padding: "9px 12px", borderRadius: expanded ? "8px 8px 0 0" : 8, background: overdue ? "#3b0a0a" : phase.status === STATUS.COMPLETE ? "#064e3b18" : phase.status === STATUS.IN_PROGRESS ? "#292006" : "transparent", borderLeft: `3px solid ${overdue ? "#ef4444" : cfg.dot}` }}>
+      <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 140px", gap: 7, alignItems: "center", padding: "9px 12px", borderRadius: expanded ? "8px 8px 0 0" : 8, background: overdue ? "#3b0a0a" : phase.status === STATUS.COMPLETE ? "#064e3b18" : phase.status === STATUS.IN_PROGRESS ? "#292006" : "transparent", borderLeft: `3px solid ${overdue ? "#ef4444" : cfg.dot}` }}>
         <button onClick={cycleStatus} style={{ width: 30, height: 30, borderRadius: "50%", border: `2px solid ${overdue ? "#ef4444" : cfg.dot}`, background: phase.status === STATUS.COMPLETE ? cfg.dot : "transparent", color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : cfg.dot, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {phase.status === STATUS.COMPLETE ? <IconCheck /> : phase.status === STATUS.IN_PROGRESS ? ">" : ""}
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
           <span style={{ fontSize: 13, color: overdue ? "#fca5a5" : phase.status === STATUS.COMPLETE ? "#6b7280" : "#e5e7eb", textDecoration: phase.status === STATUS.COMPLETE ? "line-through" : "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{phase.phase_name}</span>
           {overdue && <span style={{ display: "flex", alignItems: "center", gap: 3, background: "#7f1d1d", color: "#fca5a5", fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 20, whiteSpace: "nowrap", flexShrink: 0 }}><IconWarn />{diff}d late</span>}
-          {files.length > 0 && <span style={{ background: "#1e3a5f", color: "#60a5fa", fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 20, flexShrink: 0 }}>{files.length} file{files.length > 1 ? "s" : ""}</span>}
+          {photos.length > 0 && <span style={{ background: "#1e3a5f", color: "#60a5fa", fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 20, flexShrink: 0 }}>{photos.length} photo{photos.length > 1 ? "s" : ""}</span>}
         </div>
         <input type="date" defaultValue={phase.projected_start || ""} onBlur={e => updateField("projected_start", e.target.value)} style={dateInputStyle} />
         <input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={{ ...dateInputStyle, borderColor: overdue ? "#7f1d1d" : "#374151" }} />
@@ -211,22 +373,27 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
         <input type="date" defaultValue={phase.actual_end || ""} onBlur={e => updateField("actual_end", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <button onClick={cycleStatus} style={{ padding: "3px 8px", borderRadius: 20, border: `1px solid ${overdue ? "#ef444444" : cfg.dot + "44"}`, background: overdue ? "#ef444418" : `${cfg.dot}18`, color: overdue ? "#ef4444" : cfg.dot, fontSize: 10, fontWeight: 600, cursor: "pointer", textTransform: "uppercase", whiteSpace: "nowrap" }}>{overdue ? "Overdue" : cfg.label}</button>
-          <button onClick={() => setExpanded(p => !p)} style={{ background: (phase.notes || files.length > 0) ? "#1e3a5f" : "transparent", border: `1px solid ${(phase.notes || files.length > 0) ? "#2563eb" : "#374151"}`, borderRadius: 6, color: (phase.notes || files.length > 0) ? "#60a5fa" : "#4b5563", width: 26, height: 26, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>e</button>
+          <label title="Upload/take photo" style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 6, color: "#94a3b8", width: 26, height: 26, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <IconCamera />
+            <input type="file" accept="image/*" onChange={uploadPhoto} style={{ display: "none" }} />
+          </label>
+          <button onClick={() => setExpanded(p => !p)} style={{ background: (phase.notes || photos.length > 0) ? "#1e3a5f" : "transparent", border: `1px solid ${(phase.notes || photos.length > 0) ? "#2563eb" : "#374151"}`, borderRadius: 6, color: (phase.notes || photos.length > 0) ? "#60a5fa" : "#4b5563", width: 26, height: 26, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>e</button>
         </div>
       </div>
       {expanded && (
         <div style={{ background: "#0d1526", border: "1px solid #1e293b", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "12px" }}>
           <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes for this phase..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", background: "#111827", marginBottom: 10 }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, color: "#94a3b8" }}>
-              <IconUpload />{uploading ? "Uploading..." : "Upload File"}
-              <input type="file" onChange={uploadFile} style={{ display: "none" }} />
-            </label>
-            {files.map(f => (
-              <button key={f.id} onClick={() => openFile(f.file_path)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 12, color: "#60a5fa" }}>
-                <IconFile />{f.file_name}
-              </button>
-            ))}
+          {photos.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 6, marginBottom: 10 }}>
+              {photos.map(photo => (
+                <div key={photo.id} style={{ borderRadius: 6, overflow: "hidden", cursor: "pointer", aspectRatio: "1", background: "#1e293b" }} onClick={() => window.open(getPhotoUrl(photo.file_path), "_blank")}>
+                  <img src={getPhotoUrl(photo.file_path)} alt={photo.file_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: "#475569" }}>
+            {photos.length === 0 ? "No photos yet — use the camera icon to upload." : `${photos.length} photo${photos.length > 1 ? "s" : ""} uploaded.`}
           </div>
         </div>
       )}
@@ -234,10 +401,379 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
   );
 }
 
-function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
+// Activity Log Component
+function ActivityLog({ lotId }) {
+  const [log, setLog] = useState([]);
+
+  useEffect(() => {
+    supabase.from("activity_log").select("*").eq("lot_id", lotId).order("created_at", { ascending: false }).limit(50)
+      .then(({ data }) => { if (data) setLog(data); });
+  }, [lotId]);
+
+  const fmt = (ts) => {
+    const d = new Date(ts);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " at " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  };
+
+  if (log.length === 0) return <div style={{ color: "#475569", fontSize: 14, padding: "20px 0" }}>No activity yet.</div>;
+
+  return (
+    <div>
+      {log.map(entry => (
+        <div key={entry.id} style={{ display: "flex", gap: 12, padding: "12px 0", borderBottom: "1px solid #1e293b" }}>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 12, color: "#64748b", fontWeight: 700 }}>
+            {(entry.user_email || "?")[0].toUpperCase()}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 2 }}>{entry.details}</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "#64748b" }}>{entry.user_email}</span>
+              <span style={{ fontSize: 11, color: "#374151" }}>·</span>
+              <span style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 3 }}><IconClock />{fmt(entry.created_at)}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Team Management
+function TeamTab({ lotId, user }) {
+  const [members, setMembers] = useState([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("contractor");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => { loadMembers(); }, []);
+
+  const loadMembers = async () => {
+    const { data } = await supabase.from("lot_members").select("*").eq("lot_id", lotId);
+    if (data) setMembers(data);
+  };
+
+  const invite = async () => {
+    if (!inviteEmail) return;
+    setSaving(true);
+    await supabase.from("lot_members").insert({ lot_id: lotId, user_email: inviteEmail, role: inviteRole, invited_by: user.id });
+    setMsg(`Invite sent to ${inviteEmail}. They need to sign up at your app URL and you can share the link with them.`);
+    setInviteEmail("");
+    loadMembers();
+    setSaving(false);
+  };
+
+  const remove = async (id) => {
+    await supabase.from("lot_members").delete().eq("id", id);
+    loadMembers();
+  };
+
+  return (
+    <div>
+      <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#e5e7eb", marginBottom: 12 }}>Invite Team Member</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="Email address" style={{ ...fieldStyle, flex: 1, minWidth: 200, fontSize: 13, padding: "8px 12px" }} />
+          <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, color: "#e2e8f0", fontSize: 13, padding: "8px 12px", fontFamily: "'DM Sans', sans-serif", outline: "none" }}>
+            <option value="contractor">Contractor</option>
+            <option value="investor">Investor</option>
+            <option value="viewer">Viewer</option>
+          </select>
+          <button onClick={invite} disabled={saving} style={{ background: "#f59e0b", color: "#000", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            {saving ? "Adding..." : "Add"}
+          </button>
+        </div>
+        {msg && <div style={{ marginTop: 10, fontSize: 12, color: "#10b981" }}>{msg}</div>}
+      </div>
+      {members.length > 0 && (
+        <div>
+          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Team Members</div>
+          {members.map(m => (
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10, marginBottom: 6 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#64748b", fontWeight: 700 }}>
+                {(m.user_email || "?")[0].toUpperCase()}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, color: "#e5e7eb" }}>{m.user_email}</div>
+                <div style={{ fontSize: 11, color: "#64748b", textTransform: "capitalize" }}>{m.role}</div>
+              </div>
+              <button onClick={() => remove(m.id)} style={{ background: "transparent", border: "none", color: "#475569", cursor: "pointer", padding: 4 }}><IconTrash /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Documents Tab
+function DocumentsTab({ lotId, user }) {
+  const [docs, setDocs] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => { loadDocs(); }, []);
+
+  const loadDocs = async () => {
+    const { data } = await supabase.from("lot_documents").select("*").eq("lot_id", lotId).order("created_at", { ascending: false });
+    if (data) setDocs(data);
+  };
+
+  const upload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const path = `docs/${lotId}/${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage.from("lot-files").upload(path, file);
+    if (!error) {
+      await supabase.from("lot_documents").insert({ lot_id: lotId, file_name: file.name, file_path: path, file_type: file.type, uploaded_by: user.id, uploaded_by_email: user.email });
+      loadDocs();
+    }
+    setUploading(false);
+  };
+
+  const openDoc = (path) => {
+    const url = supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
+    window.open(url, "_blank");
+  };
+
+  const deleteDoc = async (doc) => {
+    await supabase.storage.from("lot-files").remove([doc.file_path]);
+    await supabase.from("lot_documents").delete().eq("id", doc.id);
+    loadDocs();
+  };
+
+  const fmt = (ts) => new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#f59e0b", color: "#000", border: "none", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+          <IconUpload />{uploading ? "Uploading..." : "Upload Document"}
+          <input type="file" onChange={upload} style={{ display: "none" }} />
+        </label>
+        <div style={{ fontSize: 12, color: "#475569", marginTop: 8 }}>Upload plans, permits, pool specs, surveys — anything related to this lot.</div>
+      </div>
+      {docs.length === 0 ? (
+        <div style={{ color: "#475569", fontSize: 14, padding: "20px 0" }}>No documents yet.</div>
+      ) : (
+        docs.map(doc => (
+          <div key={doc.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10, marginBottom: 6 }}>
+            <div style={{ color: "#64748b" }}><IconFile /></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, color: "#e5e7eb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.file_name}</div>
+              <div style={{ fontSize: 11, color: "#64748b" }}>{doc.uploaded_by_email} · {fmt(doc.created_at)}</div>
+            </div>
+            <button onClick={() => openDoc(doc.file_path)} style={{ background: "#1e293b", border: "none", borderRadius: 6, color: "#60a5fa", padding: "6px 10px", cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}>Open</button>
+            <button onClick={() => deleteDoc(doc)} style={{ background: "transparent", border: "none", color: "#475569", cursor: "pointer", padding: 4 }}><IconTrash /></button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// Interest Tracker Tab
+function InterestTab({ lotId }) {
+  const [loans, setLoans] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ lender_name: "", loan_amount: "", interest_rate: "", draw_date: "", payment_due_day: "1", payment_frequency: "monthly", notes: "" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { loadLoans(); }, []);
+
+  const loadLoans = async () => {
+    const { data } = await supabase.from("interest_loans").select("*").eq("lot_id", lotId).order("created_at");
+    if (data) setLoans(data);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    await supabase.from("interest_loans").insert({ ...form, lot_id: lotId, loan_amount: parseFloat(form.loan_amount), interest_rate: parseFloat(form.interest_rate), payment_due_day: parseInt(form.payment_due_day) });
+    setForm({ lender_name: "", loan_amount: "", interest_rate: "", draw_date: "", payment_due_day: "1", payment_frequency: "monthly", notes: "" });
+    setShowForm(false);
+    loadLoans();
+    setSaving(false);
+  };
+
+  const deleteLoan = async (id) => {
+    await supabase.from("interest_loans").delete().eq("id", id);
+    loadLoans();
+  };
+
+  const totalMonthly = loans.reduce((s, l) => s + calcMonthlyInterest(l.loan_amount, l.interest_rate), 0);
+  const totalDaily = loans.reduce((s, l) => s + calcDailyInterest(l.loan_amount, l.interest_rate), 0);
+  const totalExposure = loans.reduce((s, l) => s + (l.loan_amount || 0), 0);
+
+  const getNextDueDate = (loan) => {
+    const today = new Date();
+    const due = new Date(today.getFullYear(), today.getMonth(), loan.payment_due_day);
+    if (due <= today) due.setMonth(due.getMonth() + 1);
+    return due;
+  };
+
+  const daysUntilDue = (loan) => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const due = getNextDueDate(loan); due.setHours(0,0,0,0);
+    return Math.round((due - today) / 86400000);
+  };
+
+  return (
+    <div>
+      {loans.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+          {[
+            { label: "Total Loan Exposure", value: formatCurrency(totalExposure), color: "#f1f5f9" },
+            { label: "Monthly Interest Burn", value: formatCurrency(totalMonthly), color: "#f59e0b" },
+            { label: "Daily Interest Burn", value: formatCurrency(totalDaily), color: "#ef4444" },
+          ].map(s => (
+            <div key={s.label} style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: "14px" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: s.color, fontFamily: "'DM Serif Display', serif" }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loans.map(loan => {
+        const monthly = calcMonthlyInterest(loan.loan_amount, loan.interest_rate);
+        const daily = calcDailyInterest(loan.loan_amount, loan.interest_rate);
+        const daysLeft = daysUntilDue(loan);
+        const urgent = daysLeft <= 7;
+        return (
+          <div key={loan.id} style={{ background: "#0f172a", border: `1px solid ${urgent ? "#7f1d1d" : "#1e293b"}`, borderRadius: 12, padding: 16, marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9" }}>{loan.lender_name}</div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>{loan.interest_rate}% interest · {loan.payment_frequency}</div>
+              </div>
+              <button onClick={() => deleteLoan(loan.id)} style={{ background: "transparent", border: "none", color: "#475569", cursor: "pointer" }}><IconTrash /></button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 }}>
+              <div style={{ background: "#0a0f1a", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 3 }}>Loan Amount</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9" }}>{formatCurrency(loan.loan_amount)}</div>
+              </div>
+              <div style={{ background: "#0a0f1a", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 3 }}>Monthly Interest</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#f59e0b" }}>{formatCurrency(monthly)}</div>
+              </div>
+              <div style={{ background: "#0a0f1a", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 3 }}>Daily Interest</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#ef4444" }}>{formatCurrency(daily)}</div>
+              </div>
+              <div style={{ background: urgent ? "#3b0a0a" : "#0a0f1a", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 3 }}>Next Payment Due</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: urgent ? "#ef4444" : "#10b981" }}>{daysLeft === 0 ? "TODAY" : `${daysLeft} days`}</div>
+                <div style={{ fontSize: 11, color: "#64748b" }}>Day {loan.payment_due_day} of month</div>
+              </div>
+            </div>
+            {loan.draw_date && <div style={{ fontSize: 12, color: "#475569" }}>Draw date: {loan.draw_date}</div>}
+            {loan.notes && <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>{loan.notes}</div>}
+          </div>
+        );
+      })}
+
+      {showForm && (
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#e5e7eb", marginBottom: 14 }}>Add Loan</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <div><label style={labelStyle}>Lender Name</label><input value={form.lender_name} onChange={e => setForm(p => ({ ...p, lender_name: e.target.value }))} placeholder="Bank or lender name" style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px" }} /></div>
+            <div><label style={labelStyle}>Loan Amount</label><input type="number" value={form.loan_amount} onChange={e => setForm(p => ({ ...p, loan_amount: e.target.value }))} placeholder="500000" style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px" }} /></div>
+            <div><label style={labelStyle}>Interest Rate %</label><input type="number" step="0.01" value={form.interest_rate} onChange={e => setForm(p => ({ ...p, interest_rate: e.target.value }))} placeholder="8.5" style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px" }} /></div>
+            <div><label style={labelStyle}>Draw Date</label><input type="date" value={form.draw_date} onChange={e => setForm(p => ({ ...p, draw_date: e.target.value }))} style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px", colorScheme: "dark" }} /></div>
+            <div><label style={labelStyle}>Payment Due Day</label><input type="number" min="1" max="28" value={form.payment_due_day} onChange={e => setForm(p => ({ ...p, payment_due_day: e.target.value }))} placeholder="1" style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px" }} /></div>
+            <div><label style={labelStyle}>Frequency</label>
+              <select value={form.payment_frequency} onChange={e => setForm(p => ({ ...p, payment_frequency: e.target.value }))} style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px" }}>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+              </select>
+            </div>
+          </div>
+          <input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes (optional)" style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px", marginBottom: 12 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={save} disabled={saving} style={{ background: "#f59e0b", color: "#000", border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{saving ? "Saving..." : "Save Loan"}</button>
+            <button onClick={() => setShowForm(false)} style={{ background: "transparent", border: "1px solid #1e293b", borderRadius: 8, padding: "8px 18px", fontSize: 13, color: "#64748b", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {!showForm && (
+        <button onClick={() => setShowForm(true)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10, padding: "10px 16px", fontSize: 13, color: "#94a3b8", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+          <IconPlus /> Add Loan
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Investor Link Tab
+function InvestorTab({ lotId, user }) {
+  const [tokens, setTokens] = useState([]);
+  const [creating, setCreating] = useState(false);
+  const [copied, setCopied] = useState(null);
+
+  useEffect(() => { loadTokens(); }, []);
+
+  const loadTokens = async () => {
+    const { data } = await supabase.from("investor_tokens").select("*").eq("lot_id", lotId).order("created_at", { ascending: false });
+    if (data) setTokens(data);
+  };
+
+  const createLink = async () => {
+    setCreating(true);
+    const label = prompt("Label for this link (e.g. investor name):");
+    if (label) {
+      await supabase.from("investor_tokens").insert({ lot_id: lotId, label, created_by: user.id });
+      loadTokens();
+    }
+    setCreating(false);
+  };
+
+  const getLink = (token) => `${window.location.origin}?investor=${token}`;
+
+  const copyLink = (token) => {
+    navigator.clipboard.writeText(getLink(token));
+    setCopied(token);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const deleteToken = async (id) => {
+    await supabase.from("investor_tokens").delete().eq("id", id);
+    loadTokens();
+  };
+
+  return (
+    <div>
+      <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#e5e7eb", marginBottom: 6 }}>Share Progress with Investors</div>
+        <div style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>Create a private link for each investor. They can view project progress and photos without needing an account.</div>
+        <button onClick={createLink} disabled={creating} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f59e0b", color: "#000", border: "none", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+          <IconLink />{creating ? "Creating..." : "Create Investor Link"}
+        </button>
+      </div>
+      {tokens.map(token => (
+        <div key={token.id} style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#e5e7eb" }}>{token.label}</div>
+            <button onClick={() => deleteToken(token.id)} style={{ background: "transparent", border: "none", color: "#475569", cursor: "pointer" }}><IconTrash /></button>
+          </div>
+          <div style={{ background: "#0a0f1a", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#475569", wordBreak: "break-all", marginBottom: 8 }}>{getLink(token.token)}</div>
+          <button onClick={() => copyLink(token.token)} style={{ background: copied === token.token ? "#064e3b" : "#1e293b", border: "none", borderRadius: 8, color: copied === token.token ? "#10b981" : "#94a3b8", padding: "6px 14px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+            {copied === token.token ? "Copied!" : "Copy Link"}
+          </button>
+        </div>
+      ))}
+      {tokens.length === 0 && <div style={{ fontSize: 13, color: "#475569" }}>No investor links created yet.</div>}
+    </div>
+  );
+}
+
+// Lot Detail
+function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user }) {
   const [phases, setPhases] = useState([]);
   const [local, setLocal] = useState(lot);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("phases");
 
   useEffect(() => { loadPhases(); }, [lot.id]);
 
@@ -255,6 +791,14 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
 
   const prog = getOverallProgress(phases);
   const overdueCnt = countOverdue(phases);
+  const tabs = [
+    { id: "phases", label: "Phases", icon: null },
+    { id: "docs", label: "Documents", icon: null },
+    { id: "team", label: "Team", icon: null },
+    { id: "interest", label: "Interest", icon: null },
+    { id: "investor", label: "Investor", icon: null },
+    { id: "activity", label: "Activity", icon: null },
+  ];
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0f1a", color: "#e5e7eb", fontFamily: "'DM Sans', sans-serif" }}>
@@ -262,13 +806,14 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
         <div style={{ maxWidth: 1150, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={onBack} style={{ background: "#1e293b", border: "none", color: "#94a3b8", borderRadius: 8, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif", flexShrink: 0 }}><IconBack />{!isMobile && " Dashboard"}</button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter lot address..." style={{ background: "transparent", border: "none", color: "#f1f5f9", fontSize: isMobile ? 16 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} />
+            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter lot address..." style={{ background: "transparent", border: "none", color: "#f1f5f9", fontSize: isMobile ? 15 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} />
           </div>
           {saving && <span style={{ fontSize: 12, color: "#64748b", flexShrink: 0 }}>Saving...</span>}
           {!isMobile && <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ background: "#7f1d1d44", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><IconTrash /> Delete</button>}
         </div>
       </div>
-      <div style={{ maxWidth: 1150, margin: "0 auto", padding: isMobile ? "16px" : "22px 24px" }}>
+
+      <div style={{ maxWidth: 1150, margin: "0 auto", padding: isMobile ? "16px" : "20px 24px" }}>
         <div style={{ background: "#0f172a", borderRadius: 12, border: `1px solid ${overdueCnt > 0 ? "#7f1d1d" : "#1e293b"}`, padding: "14px 16px", marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontSize: 13, color: "#64748b" }}>{lot.address || "This lot"}</span>
@@ -282,8 +827,9 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
             {overdueCnt > 0 && <span style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}><IconWarn />{overdueCnt} overdue</span>}
           </div>
         </div>
+
         {!isMobile && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
             <div><label style={labelStyle}>Owner</label><input defaultValue={local.owner} onBlur={e => saveField("owner", e.target.value)} placeholder="Owner / Developer" style={fieldStyle} /></div>
             <div><label style={labelStyle}>Budget</label>
               <div style={{ position: "relative" }}>
@@ -294,29 +840,47 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
             <div><label style={labelStyle}>Notes</label><input defaultValue={local.notes} onBlur={e => saveField("notes", e.target.value)} placeholder="General notes..." style={fieldStyle} /></div>
           </div>
         )}
-        {!isMobile && (
-          <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 120px", gap: 7, padding: "4px 12px", marginBottom: 3 }}>
-            <div /><div style={{ fontSize: 11, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>Phase</div>
-            <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase" }}>Proj. Start</div>
-            <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase" }}>Proj. End</div>
-            <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase" }}>Act. Start</div>
-            <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase" }}>Act. End</div>
-            <div style={{ fontSize: 10, color: "#475569", textTransform: "uppercase" }}>Status</div>
-          </div>
+
+        <div style={{ display: "flex", gap: 4, marginBottom: 16, overflowX: "auto", paddingBottom: 4, borderBottom: "1px solid #1e293b" }}>
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={tabBtnStyle(activeTab === tab.id)}>{tab.label}</button>
+          ))}
+        </div>
+
+        {activeTab === "phases" && (
+          <>
+            {!isMobile && (
+              <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 140px", gap: 7, padding: "4px 12px", marginBottom: 3 }}>
+                <div /><div style={{ fontSize: 11, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>Phase</div>
+                <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase" }}>Proj. Start</div>
+                <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase" }}>Proj. End</div>
+                <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase" }}>Act. Start</div>
+                <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase" }}>Act. End</div>
+                <div style={{ fontSize: 10, color: "#475569", textTransform: "uppercase" }}>Status / Photo</div>
+              </div>
+            )}
+            {phases.map(phase => (
+              <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} user={user} />
+            ))}
+            {isMobile && (
+              <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ width: "100%", marginTop: 20, background: "#7f1d1d44", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
+                <IconTrash /> Delete Lot
+              </button>
+            )}
+          </>
         )}
-        {phases.map(phase => (
-          <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} />
-        ))}
-        {isMobile && (
-          <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ width: "100%", marginTop: 20, background: "#7f1d1d44", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
-            <IconTrash /> Delete Lot
-          </button>
-        )}
+
+        {activeTab === "docs" && <DocumentsTab lotId={lot.id} user={user} />}
+        {activeTab === "team" && <TeamTab lotId={lot.id} user={user} />}
+        {activeTab === "interest" && <InterestTab lotId={lot.id} />}
+        {activeTab === "investor" && <InvestorTab lotId={lot.id} user={user} />}
+        {activeTab === "activity" && <ActivityLog lotId={lot.id} />}
       </div>
     </div>
   );
 }
 
+// Dashboard
 function Dashboard({ user, onSelect, onSignOut, isMobile }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
@@ -369,9 +933,13 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
             </div>
             <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 28, fontFamily: "'DM Serif Display', serif", color: "#f1f5f9", fontWeight: 400 }}>Dev Tracker</h1>
           </div>
-          <button onClick={onSignOut} style={{ background: "#1e293b", border: "1px solid #334155", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Sign Out</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {!isMobile && <span style={{ fontSize: 12, color: "#64748b" }}>{user.email}</span>}
+            <button onClick={onSignOut} style={{ background: "#1e293b", border: "1px solid #334155", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Sign Out</button>
+          </div>
         </div>
       </div>
+
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px" : "24px 32px" }}>
         {lots.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
@@ -379,7 +947,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
               { label: "Total Lots", value: lots.length, color: "#94a3b8", warn: false },
               { label: "In Progress", value: lots.filter(l => getPhases(l.id).some(p => p.status === STATUS.IN_PROGRESS)).length, color: "#f59e0b", warn: false },
               { label: "Complete", value: lots.filter(l => getOverallProgress(getPhases(l.id)).pct === 100).length, color: "#10b981", warn: false },
-              { label: "Overdue", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#4b5563", warn: totalOverdue > 0 },
+              { label: "Overdue Phases", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#4b5563", warn: totalOverdue > 0 },
             ].map(s => (
               <div key={s.label} style={{ background: "#0f172a", border: `1px solid ${s.warn ? "#7f1d1d" : "#1e293b"}`, borderRadius: 10, padding: "12px 14px" }}>
                 <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: s.color, fontFamily: "'DM Serif Display', serif" }}>{s.value}</div>
@@ -388,6 +956,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
             ))}
           </div>
         )}
+
         {lots.length > 0 && (
           <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
             {[["all","All"],["inprogress","Active"],["overdue","Overdue"],["complete","Done"],["notstarted","Not Started"]].map(([val,lbl]) => (
@@ -395,6 +964,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
             ))}
           </div>
         )}
+
         {lots.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🏗️</div>
@@ -411,14 +981,17 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
               const prog = getOverallProgress(phases);
               const overdue = countOverdue(phases);
               return (
-                <div key={lot.id} onClick={() => onSelect(lot)} style={{ background: "#0f172a", border: `1px solid ${overdue > 0 ? "#7f1d1d" : "#1e293b"}`, borderRadius: 14, padding: 16, cursor: "pointer" }}>
+                <div key={lot.id} onClick={() => onSelect(lot)} style={{ background: "#0f172a", border: `1px solid ${overdue > 0 ? "#7f1d1d" : "#1e293b"}`, borderRadius: 14, padding: 16, cursor: "pointer" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = overdue > 0 ? "#ef4444" : "#f59e0b66"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = overdue > 0 ? "#7f1d1d" : "#1e293b"; e.currentTarget.style.transform = "none"; }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9", fontFamily: "'DM Serif Display', serif", flex: 1, marginRight: 8 }}>
                       {lot.address || <span style={{ color: "#374151", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif", fontSize: 14 }}>No address set</span>}
                     </div>
                     {overdue > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, background: "#7f1d1d", color: "#fca5a5", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, flexShrink: 0 }}><IconWarn />{overdue}</span>}
                   </div>
-                  {lot.owner && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>{lot.owner}</div>}
+                  {lot.owner && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>{lot.owner}</div>}
+                  {lot.budget && <div style={{ fontSize: 12, color: "#475569", marginBottom: 8 }}>{formatCurrency(lot.budget)}</div>}
                   <div style={{ background: "#1e293b", borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 8 }}>
                     <div style={{ width: `${prog.pct}%`, height: "100%", background: prog.pct === 100 ? "#10b981" : "linear-gradient(90deg,#d97706,#f59e0b)", borderRadius: 99 }} />
                   </div>
@@ -435,6 +1008,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
           </div>
         )}
       </div>
+
       <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 50 }}>
         <button onClick={addLot} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f59e0b", color: "#000", border: "none", borderRadius: isMobile ? "50%" : 10, padding: isMobile ? 16 : "12px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: "0 4px 20px rgba(245,158,11,0.4)" }}>
           <IconPlus />{!isMobile && "Add New Lot"}
@@ -444,12 +1018,18 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
   );
 }
 
+// App Root
 export default function App() {
   const [user, setUser] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [investorToken, setInvestorToken] = useState(null);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("investor");
+    if (token) setInvestorToken(token);
+
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -469,6 +1049,7 @@ export default function App() {
     if (data) setSelectedLot(data);
   };
 
+  if (investorToken) return <InvestorView token={investorToken} />;
   if (!user) return <AuthScreen />;
 
   return (
@@ -485,7 +1066,7 @@ export default function App() {
         body { margin: 0; }
       `}</style>
       {selectedLot
-        ? <LotDetail lot={selectedLot} onBack={() => setSelectedLot(null)} onDelete={async (id) => { await supabase.from("lots").delete().eq("id", id); setSelectedLot(null); }} onUpdate={reloadLot} isMobile={isMobile} />
+        ? <LotDetail lot={selectedLot} onBack={() => setSelectedLot(null)} onDelete={async (id) => { await supabase.from("lots").delete().eq("id", id); setSelectedLot(null); }} onUpdate={reloadLot} isMobile={isMobile} user={user} />
         : <Dashboard user={user} onSelect={setSelectedLot} onSignOut={signOut} isMobile={isMobile} />}
     </>
   );

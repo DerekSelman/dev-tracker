@@ -243,7 +243,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
 
   const loadPhases = async () => {
     const { data } = await supabase.from("phases").select("*").eq("lot_id", lot.id).order("id");
-    if (data) setPhases(data);
+    if (data) setPhases(data.sort((a, b) => PHASES.indexOf(a.phase_name) - PHASES.indexOf(b.phase_name)));
   };
 
   const saveField = async (field, value) => {

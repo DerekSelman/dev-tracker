@@ -92,7 +92,7 @@ function AuthScreen() {
         </div>
         {error && <div style={{ color: "#f87171", fontSize: 13, marginBottom: 14 }}>{error}</div>}
         <button onClick={handle} disabled={loading} style={{ width: "100%", background: "#f59e0b", color: "#000", border: "none", borderRadius: 10, padding: 14, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 12 }}>
-          {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
+          {loading ? "Please wait..." : mode === "login" ? "Sign In" : "Create Account"}
         </button>
         <div style={{ textAlign: "center", fontSize: 13, color: "#64748b" }}>
           {mode === "login" ? "Need an account? " : "Already have an account? "}
@@ -154,21 +154,9 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
   if (isMobile) {
     return (
       <div style={{ marginBottom: 6 }}>
-        <div onClick={() => setExpanded(p => !p)} style={{
-          display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
-          borderRadius: expanded ? "12px 12px 0 0" : 12,
-          background: overdue ? "#3b0a0a" : phase.status === STATUS.COMPLETE ? "#064e3b18" : phase.status === STATUS.IN_PROGRESS ? "#292006" : "#0f172a",
-          borderLeft: `4px solid ${overdue ? "#ef4444" : cfg.dot}`,
-          cursor: "pointer",
-        }}>
-          <button onClick={e => { e.stopPropagation(); cycleStatus(); }} style={{
-            width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-            border: `2px solid ${overdue ? "#ef4444" : cfg.dot}`,
-            background: phase.status === STATUS.COMPLETE ? cfg.dot : "transparent",
-            color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : cfg.dot,
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12,
-          }}>
-            {phase.status === STATUS.COMPLETE ? <IconCheck /> : phase.status === STATUS.IN_PROGRESS ? "▶" : ""}
+        <div onClick={() => setExpanded(p => !p)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: expanded ? "12px 12px 0 0" : 12, background: overdue ? "#3b0a0a" : phase.status === STATUS.COMPLETE ? "#064e3b18" : phase.status === STATUS.IN_PROGRESS ? "#292006" : "#0f172a", borderLeft: `4px solid ${overdue ? "#ef4444" : cfg.dot}`, cursor: "pointer" }}>
+          <button onClick={e => { e.stopPropagation(); cycleStatus(); }} style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: `2px solid ${overdue ? "#ef4444" : cfg.dot}`, background: phase.status === STATUS.COMPLETE ? cfg.dot : "transparent", color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : cfg.dot, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+            {phase.status === STATUS.COMPLETE ? <IconCheck /> : phase.status === STATUS.IN_PROGRESS ? ">" : ""}
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, color: overdue ? "#fca5a5" : phase.status === STATUS.COMPLETE ? "#6b7280" : "#e5e7eb", textDecoration: phase.status === STATUS.COMPLETE ? "line-through" : "none", marginBottom: 3 }}>{phase.phase_name}</div>
@@ -180,7 +168,6 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
           </div>
           <div style={{ color: "#475569", transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}><IconChevron /></div>
         </div>
-
         {expanded && (
           <div style={{ background: "#0d1526", border: "1px solid #1e293b", borderTop: "none", borderRadius: "0 0 12px 12px", padding: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
@@ -189,10 +176,10 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
               <div><div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase", marginBottom: 4 }}>Act. Start</div><input type="date" defaultValue={phase.actual_start || ""} onBlur={e => updateField("actual_start", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f" }} /></div>
               <div><div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase", marginBottom: 4 }}>Act. End</div><input type="date" defaultValue={phase.actual_end || ""} onBlur={e => updateField("actual_end", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f" }} /></div>
             </div>
-            <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes…" style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", background: "#111827", marginBottom: 10 }} />
+            <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", background: "#111827", marginBottom: 10 }} />
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 13, color: "#94a3b8" }}>
-                <IconUpload />{uploading ? "Uploading…" : "Upload File"}
+                <IconUpload />{uploading ? "Uploading..." : "Upload File"}
                 <input type="file" onChange={uploadFile} style={{ display: "none" }} />
               </label>
               {files.map(f => (
@@ -207,12 +194,11 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
     );
   }
 
-  // Desktop layout
   return (
     <div style={{ marginBottom: 4 }}>
       <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 120px", gap: 7, alignItems: "center", padding: "9px 12px", borderRadius: expanded ? "8px 8px 0 0" : 8, background: overdue ? "#3b0a0a" : phase.status === STATUS.COMPLETE ? "#064e3b18" : phase.status === STATUS.IN_PROGRESS ? "#292006" : "transparent", borderLeft: `3px solid ${overdue ? "#ef4444" : cfg.dot}` }}>
         <button onClick={cycleStatus} style={{ width: 30, height: 30, borderRadius: "50%", border: `2px solid ${overdue ? "#ef4444" : cfg.dot}`, background: phase.status === STATUS.COMPLETE ? cfg.dot : "transparent", color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : cfg.dot, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {phase.status === STATUS.COMPLETE ? <IconCheck /> : phase.status === STATUS.IN_PROGRESS ? "▶" : ""}
+          {phase.status === STATUS.COMPLETE ? <IconCheck /> : phase.status === STATUS.IN_PROGRESS ? ">" : ""}
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
           <span style={{ fontSize: 13, color: overdue ? "#fca5a5" : phase.status === STATUS.COMPLETE ? "#6b7280" : "#e5e7eb", textDecoration: phase.status === STATUS.COMPLETE ? "line-through" : "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{phase.phase_name}</span>
@@ -225,15 +211,15 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
         <input type="date" defaultValue={phase.actual_end || ""} onBlur={e => updateField("actual_end", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <button onClick={cycleStatus} style={{ padding: "3px 8px", borderRadius: 20, border: `1px solid ${overdue ? "#ef444444" : cfg.dot + "44"}`, background: overdue ? "#ef444418" : `${cfg.dot}18`, color: overdue ? "#ef4444" : cfg.dot, fontSize: 10, fontWeight: 600, cursor: "pointer", textTransform: "uppercase", whiteSpace: "nowrap" }}>{overdue ? "Overdue" : cfg.label}</button>
-          <button onClick={() => setExpanded(p => !p)} style={{ background: (phase.notes || files.length > 0) ? "#1e3a5f" : "transparent", border: `1px solid ${(phase.notes || files.length > 0) ? "#2563eb" : "#374151"}`, borderRadius: 6, color: (phase.notes || files.length > 0) ? "#60a5fa" : "#4b5563", width: 26, height: 26, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✎</button>
+          <button onClick={() => setExpanded(p => !p)} style={{ background: (phase.notes || files.length > 0) ? "#1e3a5f" : "transparent", border: `1px solid ${(phase.notes || files.length > 0) ? "#2563eb" : "#374151"}`, borderRadius: 6, color: (phase.notes || files.length > 0) ? "#60a5fa" : "#4b5563", width: 26, height: 26, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>e</button>
         </div>
       </div>
       {expanded && (
         <div style={{ background: "#0d1526", border: "1px solid #1e293b", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "12px" }}>
-          <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes for this phase…" style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", background: "#111827", marginBottom: 10 }} />
+          <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes for this phase..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", background: "#111827", marginBottom: 10 }} />
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, color: "#94a3b8" }}>
-              <IconUpload />{uploading ? "Uploading…" : "Upload File"}
+              <IconUpload />{uploading ? "Uploading..." : "Upload File"}
               <input type="file" onChange={uploadFile} style={{ display: "none" }} />
             </label>
             {files.map(f => (
@@ -276,15 +262,13 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
         <div style={{ maxWidth: 1150, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={onBack} style={{ background: "#1e293b", border: "none", color: "#94a3b8", borderRadius: 8, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif", flexShrink: 0 }}><IconBack />{!isMobile && " Dashboard"}</button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter lot address…" style={{ background: "transparent", border: "none", color: "#f1f5f9", fontSize: isMobile ? 16 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} />
+            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter lot address..." style={{ background: "transparent", border: "none", color: "#f1f5f9", fontSize: isMobile ? 16 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} />
           </div>
-          {saving && <span style={{ fontSize: 12, color: "#64748b", flexShrink: 0 }}>Saving…</span>}
+          {saving && <span style={{ fontSize: 12, color: "#64748b", flexShrink: 0 }}>Saving...</span>}
           {!isMobile && <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ background: "#7f1d1d44", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><IconTrash /> Delete</button>}
         </div>
       </div>
-
       <div style={{ maxWidth: 1150, margin: "0 auto", padding: isMobile ? "16px" : "22px 24px" }}>
-        {/* Progress card */}
         <div style={{ background: "#0f172a", borderRadius: 12, border: `1px solid ${overdueCnt > 0 ? "#7f1d1d" : "#1e293b"}`, padding: "14px 16px", marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontSize: 13, color: "#64748b" }}>{lot.address || "This lot"}</span>
@@ -298,8 +282,6 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
             {overdueCnt > 0 && <span style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}><IconWarn />{overdueCnt} overdue</span>}
           </div>
         </div>
-
-        {/* Meta fields - only show on desktop or if expanded */}
         {!isMobile && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
             <div><label style={labelStyle}>Owner</label><input defaultValue={local.owner} onBlur={e => saveField("owner", e.target.value)} placeholder="Owner / Developer" style={fieldStyle} /></div>
@@ -309,11 +291,9 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
                 <input type="number" defaultValue={local.budget} onBlur={e => saveField("budget", e.target.value)} placeholder="0" style={{ ...fieldStyle, paddingLeft: 24 }} />
               </div>
             </div>
-            <div><label style={labelStyle}>Notes</label><input defaultValue={local.notes} onBlur={e => saveField("notes", e.target.value)} placeholder="General notes…" style={fieldStyle} /></div>
+            <div><label style={labelStyle}>Notes</label><input defaultValue={local.notes} onBlur={e => saveField("notes", e.target.value)} placeholder="General notes..." style={fieldStyle} /></div>
           </div>
         )}
-
-        {/* Column headers - desktop only */}
         {!isMobile && (
           <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 120px", gap: 7, padding: "4px 12px", marginBottom: 3 }}>
             <div /><div style={{ fontSize: 11, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>Phase</div>
@@ -324,11 +304,9 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
             <div style={{ fontSize: 10, color: "#475569", textTransform: "uppercase" }}>Status</div>
           </div>
         )}
-
         {phases.map(phase => (
           <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} />
         ))}
-
         {isMobile && (
           <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ width: "100%", marginTop: 20, background: "#7f1d1d44", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
             <IconTrash /> Delete Lot
@@ -341,7 +319,6 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
 
 function Dashboard({ user, onSelect, onSignOut, isMobile }) {
   const [lots, setLots] = useState([]);
-  const [sortBy, setSortBy] = useState("added");
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
 
@@ -379,15 +356,6 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
     return true;
   });
 
-  const sorted = [...filtered].sort((a, b) => {
-    const ap = getPhases(a.id), bp = getPhases(b.id);
-    if (sortBy === "progress_desc") return getOverallProgress(bp).pct - getOverallProgress(ap).pct;
-    if (sortBy === "progress_asc") return getOverallProgress(ap).pct - getOverallProgress(bp).pct;
-    if (sortBy === "overdue") return countOverdue(bp) - countOverdue(ap);
-    if (sortBy === "address") return (a.address || "").localeCompare(b.address || "");
-    return 0;
-  });
-
   const totalOverdue = lots.reduce((s, l) => s + countOverdue(getPhases(l.id)), 0);
 
   return (
@@ -404,7 +372,6 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
           <button onClick={onSignOut} style={{ background: "#1e293b", border: "1px solid #334155", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Sign Out</button>
         </div>
       </div>
-
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px" : "24px 32px" }}>
         {lots.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
@@ -421,28 +388,30 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
             ))}
           </div>
         )}
-
         {lots.length > 0 && (
           <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
-            {[["all","All"],["inprogress","Active"],["overdue","Overdue"],["complete","Done"]].map(([val,lbl]) => (
+            {[["all","All"],["inprogress","Active"],["overdue","Overdue"],["complete","Done"],["notstarted","Not Started"]].map(([val,lbl]) => (
               <button key={val} onClick={() => setFilterBy(val)} style={{ padding: "5px 12px", borderRadius: 20, border: `1px solid ${filterBy === val ? "#f59e0b" : "#1e293b"}`, background: filterBy === val ? "#f59e0b18" : "transparent", color: filterBy === val ? "#f59e0b" : "#64748b", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: filterBy === val ? 700 : 400, whiteSpace: "nowrap", flexShrink: 0 }}>{lbl}</button>
             ))}
           </div>
         )}
-
         {lots.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🏗️</div>
             <p style={{ fontSize: 16, margin: 0, color: "#4b5563" }}>No lots yet. Add your first development!</p>
           </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 0" }}>
+            <p style={{ fontSize: 15, margin: 0, color: "#4b5563" }}>No lots match this filter.</p>
+          </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {sorted.map(lot => {
+            {filtered.map(lot => {
               const phases = getPhases(lot.id);
               const prog = getOverallProgress(phases);
               const overdue = countOverdue(phases);
               return (
-                <div key={lot.id} onClick={() => onSelect(lot)} style={{ background: "#0f172a", border: `1px solid ${overdue > 0 ? "#7f1d1d" : "#1e293b"}`, borderRadius: 14, padding: 16, cursor: "pointer", active: { transform: "scale(0.98)" } }}>
+                <div key={lot.id} onClick={() => onSelect(lot)} style={{ background: "#0f172a", border: `1px solid ${overdue > 0 ? "#7f1d1d" : "#1e293b"}`, borderRadius: 14, padding: 16, cursor: "pointer" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9", fontFamily: "'DM Serif Display', serif", flex: 1, marginRight: 8 }}>
                       {lot.address || <span style={{ color: "#374151", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif", fontSize: 14 }}>No address set</span>}
@@ -454,8 +423,11 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
                     <div style={{ width: `${prog.pct}%`, height: "100%", background: prog.pct === 100 ? "#10b981" : "linear-gradient(90deg,#d97706,#f59e0b)", borderRadius: 99 }} />
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 12, color: "#475569" }}>{prog.complete}/{prog.total} phases · {getCurrentPhase(phases)}</span>
+                    <span style={{ fontSize: 12, color: "#475569" }}>{prog.complete}/{prog.total} phases</span>
                     <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 20, background: prog.pct === 100 ? "#064e3b44" : "#292006", color: prog.pct === 100 ? "#10b981" : "#f59e0b", fontWeight: 600 }}>{prog.pct}%</span>
+                  </div>
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #1e293b", fontSize: 12, color: "#475569" }}>
+                    <span style={{ color: "#64748b" }}>Current: </span>{getCurrentPhase(phases)}
                   </div>
                 </div>
               );
@@ -463,8 +435,6 @@ function Dashboard({ user, onSelect, onSignOut, isMobile }) {
           </div>
         )}
       </div>
-
-      {/* Floating add button */}
       <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 50 }}>
         <button onClick={addLot} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f59e0b", color: "#000", border: "none", borderRadius: isMobile ? "50%" : 10, padding: isMobile ? 16 : "12px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: "0 4px 20px rgba(245,158,11,0.4)" }}>
           <IconPlus />{!isMobile && "Add New Lot"}
@@ -507,4 +477,16 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.4); }
-        input[type="number"]::-webkit-inner-spin-
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0f1a; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        select option { background: #0f172a; }
+        body { margin: 0; }
+      `}</style>
+      {selectedLot
+        ? <LotDetail lot={selectedLot} onBack={() => setSelectedLot(null)} onDelete={async (id) => { await supabase.from("lots").delete().eq("id", id); setSelectedLot(null); }} onUpdate={reloadLot} isMobile={isMobile} />
+        : <Dashboard user={user} onSelect={setSelectedLot} onSignOut={signOut} isMobile={isMobile} />}
+    </>
+  );
+}

@@ -45,7 +45,6 @@ function daysDiff(date) {
   return Math.round((today - d) / 86400000);
 }
 
-// Icons
 const IconHardHat = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 18h20v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2z"/><path d="M12 2a8 8 0 0 1 8 8v2H4v-2a8 8 0 0 1 8-8z"/><path d="M12 2v10"/></svg>;
 const IconPlus = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 const IconBack = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>;
@@ -54,13 +53,13 @@ const IconCheck = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="no
 const IconWarn = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
 const IconUpload = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
 const IconFile = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
+const IconChevron = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>;
 
-const dateInputStyle = { background: "#111827", border: "1px solid #374151", borderRadius: 6, color: "#9ca3af", fontSize: 11, padding: "4px 6px", width: "100%", fontFamily: "'DM Sans', sans-serif", outline: "none", colorScheme: "dark" };
 const labelStyle = { display: "block", fontSize: 11, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" };
 const fieldStyle = { width: "100%", background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, color: "#e2e8f0", fontSize: 14, padding: "10px 12px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" };
+const dateInputStyle = { background: "#111827", border: "1px solid #374151", borderRadius: 6, color: "#9ca3af", fontSize: 11, padding: "4px 6px", width: "100%", fontFamily: "'DM Sans', sans-serif", outline: "none", colorScheme: "dark" };
 
-// Auth Screen
-function AuthScreen({ onLogin }) {
+function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -77,8 +76,8 @@ function AuthScreen({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0f1a", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 16, padding: "40px", width: "100%", maxWidth: 400 }}>
+    <div style={{ minHeight: "100vh", background: "#0a0f1a", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", padding: 20 }}>
+      <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 16, padding: 32, width: "100%", maxWidth: 400 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
           <div style={{ color: "#f59e0b" }}><IconHardHat /></div>
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "'DM Serif Display', serif", color: "#f1f5f9", fontWeight: 400 }}>Dev Tracker</h1>
@@ -92,7 +91,7 @@ function AuthScreen({ onLogin }) {
           <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="••••••••" style={fieldStyle} onKeyDown={e => e.key === "Enter" && handle()} />
         </div>
         {error && <div style={{ color: "#f87171", fontSize: 13, marginBottom: 14 }}>{error}</div>}
-        <button onClick={handle} disabled={loading} style={{ width: "100%", background: "#f59e0b", color: "#000", border: "none", borderRadius: 10, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 12 }}>
+        <button onClick={handle} disabled={loading} style={{ width: "100%", background: "#f59e0b", color: "#000", border: "none", borderRadius: 10, padding: 14, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 12 }}>
           {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
         </button>
         <div style={{ textAlign: "center", fontSize: 13, color: "#64748b" }}>
@@ -107,8 +106,7 @@ function AuthScreen({ onLogin }) {
   );
 }
 
-// Phase Row
-function PhaseRow({ phase, lotId, onUpdate }) {
+function PhaseRow({ phase, lotId, onUpdate, isMobile }) {
   const [expanded, setExpanded] = useState(false);
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -153,10 +151,67 @@ function PhaseRow({ phase, lotId, onUpdate }) {
     window.open(data.publicUrl, "_blank");
   };
 
+  if (isMobile) {
+    return (
+      <div style={{ marginBottom: 6 }}>
+        <div onClick={() => setExpanded(p => !p)} style={{
+          display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
+          borderRadius: expanded ? "12px 12px 0 0" : 12,
+          background: overdue ? "#3b0a0a" : phase.status === STATUS.COMPLETE ? "#064e3b18" : phase.status === STATUS.IN_PROGRESS ? "#292006" : "#0f172a",
+          borderLeft: `4px solid ${overdue ? "#ef4444" : cfg.dot}`,
+          cursor: "pointer",
+        }}>
+          <button onClick={e => { e.stopPropagation(); cycleStatus(); }} style={{
+            width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+            border: `2px solid ${overdue ? "#ef4444" : cfg.dot}`,
+            background: phase.status === STATUS.COMPLETE ? cfg.dot : "transparent",
+            color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : cfg.dot,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12,
+          }}>
+            {phase.status === STATUS.COMPLETE ? <IconCheck /> : phase.status === STATUS.IN_PROGRESS ? "▶" : ""}
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, color: overdue ? "#fca5a5" : phase.status === STATUS.COMPLETE ? "#6b7280" : "#e5e7eb", textDecoration: phase.status === STATUS.COMPLETE ? "line-through" : "none", marginBottom: 3 }}>{phase.phase_name}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, color: overdue ? "#ef4444" : cfg.dot, fontWeight: 600 }}>{overdue ? `${diff}d overdue` : cfg.label}</span>
+              {phase.projected_end && <span style={{ fontSize: 11, color: "#475569" }}>Due {phase.projected_end}</span>}
+              {files.length > 0 && <span style={{ fontSize: 11, color: "#60a5fa" }}>{files.length} file{files.length > 1 ? "s" : ""}</span>}
+            </div>
+          </div>
+          <div style={{ color: "#475569", transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}><IconChevron /></div>
+        </div>
+
+        {expanded && (
+          <div style={{ background: "#0d1526", border: "1px solid #1e293b", borderTop: "none", borderRadius: "0 0 12px 12px", padding: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", marginBottom: 4 }}>Proj. Start</div><input type="date" defaultValue={phase.projected_start || ""} onBlur={e => updateField("projected_start", e.target.value)} style={dateInputStyle} /></div>
+              <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", marginBottom: 4 }}>Proj. End</div><input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={{ ...dateInputStyle, borderColor: overdue ? "#7f1d1d" : "#374151" }} /></div>
+              <div><div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase", marginBottom: 4 }}>Act. Start</div><input type="date" defaultValue={phase.actual_start || ""} onBlur={e => updateField("actual_start", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f" }} /></div>
+              <div><div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase", marginBottom: 4 }}>Act. End</div><input type="date" defaultValue={phase.actual_end || ""} onBlur={e => updateField("actual_end", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f" }} /></div>
+            </div>
+            <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes…" style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", background: "#111827", marginBottom: 10 }} />
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 13, color: "#94a3b8" }}>
+                <IconUpload />{uploading ? "Uploading…" : "Upload File"}
+                <input type="file" onChange={uploadFile} style={{ display: "none" }} />
+              </label>
+              {files.map(f => (
+                <button key={f.id} onClick={() => openFile(f.file_path)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, padding: "8px 10px", cursor: "pointer", fontSize: 12, color: "#60a5fa" }}>
+                  <IconFile />{f.file_name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop layout
   return (
     <div style={{ marginBottom: 4 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 120px", gap: 7, alignItems: "center", padding: "9px 12px", borderRadius: expanded ? "8px 8px 0 0" : 8, background: overdue ? "#3b0a0a" : phase.status === STATUS.COMPLETE ? "#064e3b18" : phase.status === STATUS.IN_PROGRESS ? "#292006" : "transparent", borderLeft: `3px solid ${overdue ? "#ef4444" : cfg.dot}`, transition: "background 0.2s" }}>
-        <button onClick={cycleStatus} style={{ width: 30, height: 30, borderRadius: "50%", border: `2px solid ${overdue ? "#ef4444" : cfg.dot}`, background: phase.status === STATUS.COMPLETE ? cfg.dot : "transparent", color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : cfg.dot, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 120px", gap: 7, alignItems: "center", padding: "9px 12px", borderRadius: expanded ? "8px 8px 0 0" : 8, background: overdue ? "#3b0a0a" : phase.status === STATUS.COMPLETE ? "#064e3b18" : phase.status === STATUS.IN_PROGRESS ? "#292006" : "transparent", borderLeft: `3px solid ${overdue ? "#ef4444" : cfg.dot}` }}>
+        <button onClick={cycleStatus} style={{ width: 30, height: 30, borderRadius: "50%", border: `2px solid ${overdue ? "#ef4444" : cfg.dot}`, background: phase.status === STATUS.COMPLETE ? cfg.dot : "transparent", color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : cfg.dot, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {phase.status === STATUS.COMPLETE ? <IconCheck /> : phase.status === STATUS.IN_PROGRESS ? "▶" : ""}
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
@@ -165,15 +220,14 @@ function PhaseRow({ phase, lotId, onUpdate }) {
           {files.length > 0 && <span style={{ background: "#1e3a5f", color: "#60a5fa", fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 20, flexShrink: 0 }}>{files.length} file{files.length > 1 ? "s" : ""}</span>}
         </div>
         <input type="date" defaultValue={phase.projected_start || ""} onBlur={e => updateField("projected_start", e.target.value)} style={dateInputStyle} />
-        <input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={{ ...dateInputStyle, borderColor: overdue ? "#7f1d1d" : "#374151", color: overdue ? "#fca5a5" : "#9ca3af" }} />
-        <input type="date" defaultValue={phase.actual_start || ""} onBlur={e => updateField("actual_start", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f", color: phase.actual_start ? "#93c5fd" : "#4b5563" }} />
-        <input type="date" defaultValue={phase.actual_end || ""} onBlur={e => updateField("actual_end", e.target.value)} style={{ ...dateInputStyle, borderColor: phase.actual_end ? "#064e3b" : "#1e3a5f", color: phase.actual_end ? "#6ee7b7" : "#4b5563" }} />
+        <input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={{ ...dateInputStyle, borderColor: overdue ? "#7f1d1d" : "#374151" }} />
+        <input type="date" defaultValue={phase.actual_start || ""} onBlur={e => updateField("actual_start", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f" }} />
+        <input type="date" defaultValue={phase.actual_end || ""} onBlur={e => updateField("actual_end", e.target.value)} style={{ ...dateInputStyle, borderColor: "#1e3a5f" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <button onClick={cycleStatus} style={{ padding: "3px 8px", borderRadius: 20, border: `1px solid ${overdue ? "#ef444444" : cfg.dot + "44"}`, background: overdue ? "#ef444418" : `${cfg.dot}18`, color: overdue ? "#ef4444" : cfg.dot, fontSize: 10, fontWeight: 600, cursor: "pointer", textTransform: "uppercase", whiteSpace: "nowrap" }}>{overdue ? "Overdue" : cfg.label}</button>
           <button onClick={() => setExpanded(p => !p)} style={{ background: (phase.notes || files.length > 0) ? "#1e3a5f" : "transparent", border: `1px solid ${(phase.notes || files.length > 0) ? "#2563eb" : "#374151"}`, borderRadius: 6, color: (phase.notes || files.length > 0) ? "#60a5fa" : "#4b5563", width: 26, height: 26, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✎</button>
         </div>
       </div>
-
       {expanded && (
         <div style={{ background: "#0d1526", border: "1px solid #1e293b", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "12px" }}>
           <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes for this phase…" style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", background: "#111827", marginBottom: 10 }} />
@@ -194,8 +248,7 @@ function PhaseRow({ phase, lotId, onUpdate }) {
   );
 }
 
-// Lot Detail
-function LotDetail({ lot, onBack, onDelete, onUpdate }) {
+function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile }) {
   const [phases, setPhases] = useState([]);
   const [local, setLocal] = useState(lot);
   const [saving, setSaving] = useState(false);
@@ -219,59 +272,74 @@ function LotDetail({ lot, onBack, onDelete, onUpdate }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0f1a", color: "#e5e7eb", fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ background: "#0f172a", borderBottom: "1px solid #1e293b", padding: "14px 24px", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ maxWidth: 1150, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={onBack} style={{ background: "#1e293b", border: "none", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><IconBack /> Dashboard</button>
-          <div style={{ flex: 1 }}>
-            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter lot address…" style={{ background: "transparent", border: "none", color: "#f1f5f9", fontSize: 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} />
+      <div style={{ background: "#0f172a", borderBottom: "1px solid #1e293b", padding: isMobile ? "12px 16px" : "14px 24px", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 1150, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={onBack} style={{ background: "#1e293b", border: "none", color: "#94a3b8", borderRadius: 8, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif", flexShrink: 0 }}><IconBack />{!isMobile && " Dashboard"}</button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter lot address…" style={{ background: "transparent", border: "none", color: "#f1f5f9", fontSize: isMobile ? 16 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} />
           </div>
-          {saving && <span style={{ fontSize: 12, color: "#64748b" }}>Saving…</span>}
-          <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ background: "#7f1d1d44", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><IconTrash /> Delete</button>
+          {saving && <span style={{ fontSize: 12, color: "#64748b", flexShrink: 0 }}>Saving…</span>}
+          {!isMobile && <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ background: "#7f1d1d44", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><IconTrash /> Delete</button>}
         </div>
       </div>
 
-      <div style={{ maxWidth: 1150, margin: "0 auto", padding: "22px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14, marginBottom: 22 }}>
-          <div><label style={labelStyle}>Owner Name</label><input defaultValue={local.owner} onBlur={e => saveField("owner", e.target.value)} placeholder="Owner / Developer" style={fieldStyle} /></div>
-          <div><label style={labelStyle}>Budget</label>
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: 14 }}>$</span>
-              <input type="number" defaultValue={local.budget} onBlur={e => saveField("budget", e.target.value)} placeholder="0" style={{ ...fieldStyle, paddingLeft: 24 }} />
-            </div>
+      <div style={{ maxWidth: 1150, margin: "0 auto", padding: isMobile ? "16px" : "22px 24px" }}>
+        {/* Progress card */}
+        <div style={{ background: "#0f172a", borderRadius: 12, border: `1px solid ${overdueCnt > 0 ? "#7f1d1d" : "#1e293b"}`, padding: "14px 16px", marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 13, color: "#64748b" }}>{lot.address || "This lot"}</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: "#10b981" }}>{prog.pct}%</span>
           </div>
-          <div><label style={labelStyle}>Lot Notes</label><input defaultValue={local.notes} onBlur={e => saveField("notes", e.target.value)} placeholder="General notes…" style={fieldStyle} /></div>
-          <div style={{ background: "#0f172a", borderRadius: 12, border: `1px solid ${overdueCnt > 0 ? "#7f1d1d" : "#1e293b"}`, padding: "12px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase" }}>Progress</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#10b981" }}>{prog.pct}%</span>
-            </div>
-            <div style={{ background: "#1e293b", borderRadius: 99, height: 7, overflow: "hidden", marginBottom: 7 }}>
-              <div style={{ width: `${prog.pct}%`, height: "100%", background: "linear-gradient(90deg, #059669, #10b981)", borderRadius: 99, transition: "width 0.4s" }} />
-            </div>
-            <div style={{ fontSize: 11, color: "#64748b" }}>{prog.complete}/{prog.total} phases complete</div>
-            {overdueCnt > 0 && <div style={{ marginTop: 5, fontSize: 11, color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}><IconWarn />{overdueCnt} overdue</div>}
+          <div style={{ background: "#1e293b", borderRadius: 99, height: 8, overflow: "hidden", marginBottom: 8 }}>
+            <div style={{ width: `${prog.pct}%`, height: "100%", background: "linear-gradient(90deg, #059669, #10b981)", borderRadius: 99, transition: "width 0.4s" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#64748b" }}>
+            <span>{prog.complete}/{prog.total} phases complete</span>
+            {overdueCnt > 0 && <span style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}><IconWarn />{overdueCnt} overdue</span>}
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 120px", gap: 7, padding: "4px 12px", marginBottom: 3 }}>
-          <div /><div style={{ fontSize: 11, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>Phase</div>
-          <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase" }}>Proj. Start</div>
-          <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase" }}>Proj. End</div>
-          <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase" }}>Act. Start</div>
-          <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase" }}>Act. End</div>
-          <div style={{ fontSize: 10, color: "#475569", textTransform: "uppercase" }}>Status</div>
-        </div>
+        {/* Meta fields - only show on desktop or if expanded */}
+        {!isMobile && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
+            <div><label style={labelStyle}>Owner</label><input defaultValue={local.owner} onBlur={e => saveField("owner", e.target.value)} placeholder="Owner / Developer" style={fieldStyle} /></div>
+            <div><label style={labelStyle}>Budget</label>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: 14 }}>$</span>
+                <input type="number" defaultValue={local.budget} onBlur={e => saveField("budget", e.target.value)} placeholder="0" style={{ ...fieldStyle, paddingLeft: 24 }} />
+              </div>
+            </div>
+            <div><label style={labelStyle}>Notes</label><input defaultValue={local.notes} onBlur={e => saveField("notes", e.target.value)} placeholder="General notes…" style={fieldStyle} /></div>
+          </div>
+        )}
+
+        {/* Column headers - desktop only */}
+        {!isMobile && (
+          <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 108px 108px 108px 108px 120px", gap: 7, padding: "4px 12px", marginBottom: 3 }}>
+            <div /><div style={{ fontSize: 11, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>Phase</div>
+            <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase" }}>Proj. Start</div>
+            <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase" }}>Proj. End</div>
+            <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase" }}>Act. Start</div>
+            <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase" }}>Act. End</div>
+            <div style={{ fontSize: 10, color: "#475569", textTransform: "uppercase" }}>Status</div>
+          </div>
+        )}
 
         {phases.map(phase => (
-          <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} />
+          <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} />
         ))}
+
+        {isMobile && (
+          <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ width: "100%", marginTop: 20, background: "#7f1d1d44", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
+            <IconTrash /> Delete Lot
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-// Dashboard
-function Dashboard({ user, onSelect, onSignOut }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile }) {
   const [lots, setLots] = useState([]);
   const [sortBy, setSortBy] = useState("added");
   const [filterBy, setFilterBy] = useState("all");
@@ -300,11 +368,6 @@ function Dashboard({ user, onSelect, onSignOut }) {
     }
   };
 
-  const deleteLot = async (id) => {
-    await supabase.from("lots").delete().eq("id", id);
-    loadLots();
-  };
-
   const getPhases = (lotId) => lotPhases[lotId] || [];
 
   const filtered = lots.filter(l => {
@@ -328,117 +391,99 @@ function Dashboard({ user, onSelect, onSignOut }) {
   const totalOverdue = lots.reduce((s, l) => s + countOverdue(getPhases(l.id)), 0);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0f1a", color: "#e5e7eb", fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ background: "linear-gradient(180deg, #0f172a 0%, #0a0f1a 100%)", borderBottom: "1px solid #1e293b", padding: "24px 32px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0f1a", color: "#e5e7eb", fontFamily: "'DM Sans', sans-serif", paddingBottom: 80 }}>
+      <div style={{ background: "linear-gradient(180deg, #0f172a 0%, #0a0f1a 100%)", borderBottom: "1px solid #1e293b", padding: isMobile ? "16px" : "24px 32px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
               <div style={{ color: "#f59e0b" }}><IconHardHat /></div>
-              <span style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "#64748b", fontWeight: 600 }}>Construction Management</span>
+              {!isMobile && <span style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "#64748b", fontWeight: 600 }}>Construction Management</span>}
             </div>
-            <h1 style={{ margin: 0, fontSize: 30, fontFamily: "'DM Serif Display', serif", color: "#f1f5f9", fontWeight: 400 }}>Development Tracker</h1>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 28, fontFamily: "'DM Serif Display', serif", color: "#f1f5f9", fontWeight: 400 }}>Dev Tracker</h1>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 13, color: "#64748b" }}>{user.email}</span>
-            <button onClick={onSignOut} style={{ background: "#1e293b", border: "1px solid #334155", color: "#94a3b8", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Sign Out</button>
-          </div>
+          <button onClick={onSignOut} style={{ background: "#1e293b", border: "1px solid #334155", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Sign Out</button>
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 32px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px" : "24px 32px" }}>
         {lots.length > 0 && (
-          <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
             {[
               { label: "Total Lots", value: lots.length, color: "#94a3b8", warn: false },
               { label: "In Progress", value: lots.filter(l => getPhases(l.id).some(p => p.status === STATUS.IN_PROGRESS)).length, color: "#f59e0b", warn: false },
-              { label: "Fully Complete", value: lots.filter(l => getOverallProgress(getPhases(l.id)).pct === 100).length, color: "#10b981", warn: false },
-              { label: "Overdue Phases", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#4b5563", warn: totalOverdue > 0 },
+              { label: "Complete", value: lots.filter(l => getOverallProgress(getPhases(l.id)).pct === 100).length, color: "#10b981", warn: false },
+              { label: "Overdue", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#4b5563", warn: totalOverdue > 0 },
             ].map(s => (
-              <div key={s.label} style={{ background: "#0f172a", border: `1px solid ${s.warn ? "#7f1d1d" : "#1e293b"}`, borderRadius: 12, padding: "14px 20px", flex: 1 }}>
-                <div style={{ fontSize: 26, fontWeight: 700, color: s.color, fontFamily: "'DM Serif Display', serif" }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{s.label}</div>
+              <div key={s.label} style={{ background: "#0f172a", border: `1px solid ${s.warn ? "#7f1d1d" : "#1e293b"}`, borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: s.color, fontFamily: "'DM Serif Display', serif" }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
           </div>
         )}
 
         {lots.length > 0 && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
-            {[["all","All"],["inprogress","In Progress"],["overdue","Overdue"],["complete","Complete"],["notstarted","Not Started"]].map(([val,lbl]) => (
-              <button key={val} onClick={() => setFilterBy(val)} style={{ padding: "4px 12px", borderRadius: 20, border: `1px solid ${filterBy === val ? "#f59e0b" : "#1e293b"}`, background: filterBy === val ? "#f59e0b18" : "transparent", color: filterBy === val ? "#f59e0b" : "#64748b", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: filterBy === val ? 700 : 400 }}>{lbl}</button>
+          <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
+            {[["all","All"],["inprogress","Active"],["overdue","Overdue"],["complete","Done"]].map(([val,lbl]) => (
+              <button key={val} onClick={() => setFilterBy(val)} style={{ padding: "5px 12px", borderRadius: 20, border: `1px solid ${filterBy === val ? "#f59e0b" : "#1e293b"}`, background: filterBy === val ? "#f59e0b18" : "transparent", color: filterBy === val ? "#f59e0b" : "#64748b", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: filterBy === val ? 700 : 400, whiteSpace: "nowrap", flexShrink: 0 }}>{lbl}</button>
             ))}
-            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, color: "#64748b" }}>Sort:</span>
-              <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, color: "#94a3b8", fontSize: 12, padding: "5px 10px", fontFamily: "'DM Sans', sans-serif", outline: "none", cursor: "pointer" }}>
-                <option value="added">Date Added</option>
-                <option value="progress_desc">Most Progress</option>
-                <option value="progress_asc">Least Progress</option>
-                <option value="overdue">Most Overdue</option>
-                <option value="address">Address A–Z</option>
-              </select>
-            </div>
           </div>
         )}
 
         {lots.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 0" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🏗️</div>
-            <p style={{ fontSize: 18, margin: 0, color: "#4b5563" }}>No lots yet. Add your first development below.</p>
-          </div>
-        ) : sorted.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <p style={{ fontSize: 16, margin: 0, color: "#4b5563" }}>No lots match this filter.</p>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🏗️</div>
+            <p style={{ fontSize: 16, margin: 0, color: "#4b5563" }}>No lots yet. Add your first development!</p>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 12, marginBottom: 20 }}>
             {sorted.map(lot => {
               const phases = getPhases(lot.id);
               const prog = getOverallProgress(phases);
               const overdue = countOverdue(phases);
               return (
-                <div key={lot.id} onClick={() => onSelect(lot)} style={{ background: "#0f172a", border: `1px solid ${overdue > 0 ? "#7f1d1d" : "#1e293b"}`, borderRadius: 14, padding: "20px", cursor: "pointer", transition: "border-color 0.15s, transform 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = overdue > 0 ? "#ef4444" : "#f59e0b66"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = overdue > 0 ? "#7f1d1d" : "#1e293b"; e.currentTarget.style.transform = "none"; }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-                    <div style={{ fontSize: 11, color: "#64748b" }}>LOT</div>
-                    {overdue > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, background: "#7f1d1d", color: "#fca5a5", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20 }}><IconWarn />{overdue} overdue</span>}
+                <div key={lot.id} onClick={() => onSelect(lot)} style={{ background: "#0f172a", border: `1px solid ${overdue > 0 ? "#7f1d1d" : "#1e293b"}`, borderRadius: 14, padding: 16, cursor: "pointer", active: { transform: "scale(0.98)" } }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9", fontFamily: "'DM Serif Display', serif", flex: 1, marginRight: 8 }}>
+                      {lot.address || <span style={{ color: "#374151", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif", fontSize: 14 }}>No address set</span>}
+                    </div>
+                    {overdue > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, background: "#7f1d1d", color: "#fca5a5", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, flexShrink: 0 }}><IconWarn />{overdue}</span>}
                   </div>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: "#f1f5f9", fontFamily: "'DM Serif Display', serif", marginBottom: 3, minHeight: 26 }}>
-                    {lot.address || <span style={{ color: "#374151", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif", fontSize: 14 }}>No address set</span>}
-                  </div>
-                  {lot.owner && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 1 }}>{lot.owner}</div>}
-                  {lot.budget && <div style={{ fontSize: 12, color: "#475569", marginBottom: 8 }}>${Number(lot.budget).toLocaleString()}</div>}
-                  <div style={{ background: "#1e293b", borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 8, marginTop: 10 }}>
+                  {lot.owner && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>{lot.owner}</div>}
+                  <div style={{ background: "#1e293b", borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 8 }}>
                     <div style={{ width: `${prog.pct}%`, height: "100%", background: prog.pct === 100 ? "#10b981" : "linear-gradient(90deg,#d97706,#f59e0b)", borderRadius: 99 }} />
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 11, color: "#475569" }}>{prog.complete}/{prog.total} phases</span>
-                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: prog.pct === 100 ? "#064e3b44" : "#292006", color: prog.pct === 100 ? "#10b981" : "#f59e0b", fontWeight: 600 }}>{prog.pct}%</span>
-                  </div>
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e293b", fontSize: 12, color: "#475569" }}>
-                    <span style={{ color: "#64748b" }}>Current: </span>{getCurrentPhase(phases)}
+                    <span style={{ fontSize: 12, color: "#475569" }}>{prog.complete}/{prog.total} phases · {getCurrentPhase(phases)}</span>
+                    <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 20, background: prog.pct === 100 ? "#064e3b44" : "#292006", color: prog.pct === 100 ? "#10b981" : "#f59e0b", fontWeight: 600 }}>{prog.pct}%</span>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
+      </div>
 
-        <button onClick={addLot} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f59e0b", color: "#000", border: "none", borderRadius: 10, padding: "12px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
-          onMouseEnter={e => e.currentTarget.style.background = "#fbbf24"}
-          onMouseLeave={e => e.currentTarget.style.background = "#f59e0b"}>
-          <IconPlus /> Add New Lot
+      {/* Floating add button */}
+      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 50 }}>
+        <button onClick={addLot} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f59e0b", color: "#000", border: "none", borderRadius: isMobile ? "50%" : 10, padding: isMobile ? 16 : "12px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: "0 4px 20px rgba(245,158,11,0.4)" }}>
+          <IconPlus />{!isMobile && "Add New Lot"}
         </button>
       </div>
     </div>
   );
 }
 
-// App Root
 export default function App() {
   const [user, setUser] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
-  const [lots, setLots] = useState([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
@@ -460,17 +505,6 @@ export default function App() {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.4); }
-        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0a0f1a; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-        select option { background: #0f172a; }
-      `}</style>
-      {selectedLot
-        ? <LotDetail lot={selectedLot} onBack={() => setSelectedLot(null)} onDelete={async (id) => { await supabase.from("lots").delete().eq("id", id); setSelectedLot(null); }} onUpdate={reloadLot} />
-        : <Dashboard user={user} onSelect={setSelectedLot} onSignOut={signOut} />}
-    </>
-  );
-}
+        input[type="number"]::-webkit-inner-spin-

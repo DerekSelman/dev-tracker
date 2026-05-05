@@ -272,8 +272,8 @@ export default function ProspectiveLots({ user, onConvert }) {
             <iframe
               title="Prospective Lots Map"
               width="100%" height="100%" frameBorder="0" style={{ border: 0 }}
-              src={`https://maps.google.com/maps?q=${lots.filter(l => l.address).map(l => encodeURIComponent(l.address)).join("|")}&output=embed`}
-              allowFullScreen
+src={lots.filter(l => l.address && l.status !== "Passed").length > 0 ? `https://maps.google.com/maps?q=${lots.filter(l => l.address && l.status !== "Passed").map(l => encodeURIComponent(l.address)).join("|")}&output=embed` : `https://maps.google.com/maps?q=Lake+Havasu+City,+Arizona&z=12&output=embed`}
+allowFullScreen
             />
             <div style={{ position: "absolute", top: 10, left: 10, background: "#000", color: G, fontSize: 11, padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>
               {lots.filter(l => l.address && l.status !== "Passed").length} prospective lots

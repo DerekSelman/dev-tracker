@@ -4,7 +4,8 @@ import { PHASES, STATUS, STATUS_CONFIG, G, G2, G3, getOverallProgress, getCurren
 import InterestTab from "./components/InterestTab";
 import PhaseChecklist from "./components/PhaseChecklist";
 import PunchListTab from "./components/PunchListTab";
-import ProspectiveLots from "./components/ProspectiveLots";
+
+const OWNER_EMAIL = "derekselman@gmail.com";
 
 // Auth Screen
 function AuthScreen() {
@@ -156,7 +157,7 @@ function InvestorView({ token }) {
 }
 
 // Phase Row
-function PhaseRow({ phase, lotId, onUpdate, isMobile, user }) {
+function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
   const [expanded, setExpanded] = useState(false);
   const [photos, setPhotos] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -205,7 +206,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user }) {
       const { error } = await supabase.storage.from("lot-files").upload(path, file);
       if (!error) {
         await supabase.from("phase_photos").insert({ lot_id: lotId, phase_id: phase.id, file_name: file.name, file_path: path, uploaded_by: user.id, uploaded_by_email: user.email });
-        await logActivity("photo_upload", `Photo uploaded to ${phase.phase_name}`);
+        await logActivity("photo_upload", `Photo uploaded to ${phase.phase_name} by ${user.email}`);
       }
     }
     loadPhotos();
@@ -213,7 +214,6 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user }) {
   };
 
   const getPhotoUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
-
   const hasChecklistWarning = !checklistStatus.allDone && phase.status === STATUS.IN_PROGRESS;
   const statusColors = {
     [STATUS.NOT_STARTED]: { bg: "#f8fafc", border: "#e2e8f0" },
@@ -232,7 +232,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, color: overdue ? "#991b1b" : phase.status === STATUS.COMPLETE ? "#94a3b8" : "#1e293b", textDecoration: phase.status === STATUS.COMPLETE ? "line-through" : "none", marginBottom: 3, fontWeight: 500 }}>{phase.phase_name}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <span style={{ fontSize: 11, color: overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot, fontWeight: 700 }}>{overdue ? `${diff}d overdue` : hasChecklistWarning ? `${checklistStatus.total - checklistStatus.done} checklist items open` : cfg.label}</span>
+              <span style={{ fontSize: 11, color: overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot, fontWeight: 700 }}>{overdue ? `${diff}d overdue` : hasChecklistWarning ? `${checklistStatus.total - checklistStatus.done} open items` : cfg.label}</span>
               {photos.length > 0 && <span style={{ fontSize: 11, color: G2, fontWeight: 600 }}>{photos.length} photo{photos.length > 1 ? "s" : ""}</span>}
               {checklistStatus.total > 0 && <span style={{ fontSize: 11, color: "#64748b" }}>{checklistStatus.done}/{checklistStatus.total} checklist</span>}
             </div>
@@ -277,7 +277,6 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user }) {
     );
   }
 
-  // Desktop
   return (
     <div style={{ marginBottom: 6 }}>
       <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 108px 108px 108px 108px 160px", gap: 8, alignItems: "center", padding: "10px 14px", borderRadius: expanded ? "10px 10px 0 0" : 10, background: sc.bg, border: `1.5px solid ${sc.border}` }}>
@@ -360,7 +359,7 @@ function ActivityLog({ lotId }) {
 }
 
 // Team Tab
-function TeamTab({ lotId, user }) {
+function TeamTab({ lotId, user, isOwner }) {
   const [members, setMembers] = useState([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
@@ -378,7 +377,7 @@ function TeamTab({ lotId, user }) {
   const invite = async () => {
     if (!inviteEmail) return;
     setSaving(true);
-    await supabase.from("lot_members").insert({ lot_id: lotId, user_email: inviteEmail, role: inviteRole, invited_by: user.id });
+    await supabase.from("lot_members").insert({ lot_id: lotId, user_email: inviteEmail, full_name: inviteName, role: inviteRole, invited_by: user.id });
     setMsg(`${inviteName || inviteEmail} added. Share your app link so they can sign in.`);
     setInviteEmail(""); setInviteName("");
     loadMembers();
@@ -389,6 +388,8 @@ function TeamTab({ lotId, user }) {
     await supabase.from("lot_members").delete().eq("id", id);
     loadMembers();
   };
+
+  if (!isOwner) return <div style={{ color: "#94a3b8", fontSize: 14 }}>Contact the owner to manage team members.</div>;
 
   return (
     <div>
@@ -417,11 +418,11 @@ function TeamTab({ lotId, user }) {
           {members.map(m => (
             <div key={m.id} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
               <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#000", border: `2px solid ${G}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: G, fontWeight: 700 }}>
-                {(m.user_email || "?")[0].toUpperCase()}
+                {(m.full_name || m.user_email || "?")[0].toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{m.user_email}</div>
-                <div style={{ fontSize: 11, color: "#64748b", textTransform: "capitalize" }}>{m.role}</div>
+                <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{m.full_name || m.user_email}</div>
+                <div style={{ fontSize: 11, color: "#64748b" }}>{m.user_email} · <span style={{ textTransform: "capitalize" }}>{m.role}</span></div>
               </div>
               <button onClick={() => remove(m.id)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer" }}><Icons.Trash /></button>
             </div>
@@ -459,13 +460,11 @@ function DocumentsTab({ lotId, user }) {
   };
 
   const openDoc = (path) => window.open(supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl, "_blank");
-
   const deleteDoc = async (doc) => {
     await supabase.storage.from("lot-files").remove([doc.file_path]);
     await supabase.from("lot_documents").delete().eq("id", doc.id);
     loadDocs();
   };
-
   const fmt = (ts) => new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   return (
@@ -495,7 +494,7 @@ function DocumentsTab({ lotId, user }) {
 }
 
 // Investor Tab
-function InvestorTab({ lotId, user }) {
+function InvestorTab({ lotId, user, isOwner }) {
   const [tokens, setTokens] = useState([]);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(null);
@@ -520,6 +519,8 @@ function InvestorTab({ lotId, user }) {
   const getLink = (token) => `${window.location.origin}?investor=${token}`;
   const copyLink = (token) => { navigator.clipboard.writeText(getLink(token)); setCopied(token); setTimeout(() => setCopied(null), 2000); };
   const deleteToken = async (id) => { await supabase.from("investor_tokens").delete().eq("id", id); loadTokens(); };
+
+  if (!isOwner) return <div style={{ color: "#94a3b8", fontSize: 14 }}>Contact the owner to manage investor links.</div>;
 
   return (
     <div>
@@ -546,7 +547,7 @@ function InvestorTab({ lotId, user }) {
 }
 
 // Lot Detail
-function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user }) {
+function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, userRole }) {
   const [phases, setPhases] = useState([]);
   const [local, setLocal] = useState(lot);
   const [saving, setSaving] = useState(false);
@@ -568,15 +569,18 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user }) {
 
   const prog = getOverallProgress(phases);
   const overdueCnt = countOverdue(phases);
-  const tabs = [
-    { id: "phases", label: "Phases" },
-    { id: "punch", label: "Punch List" },
-    { id: "docs", label: "Documents" },
-    { id: "team", label: "Team" },
-    { id: "interest", label: "Interest" },
-    { id: "investor", label: "Investor" },
-    { id: "activity", label: "Activity" },
+
+  // Tabs based on role
+  const allTabs = [
+    { id: "phases", label: "Phases", roles: ["owner", "manager", "contractor", "viewer"] },
+    { id: "punch", label: "Punch List", roles: ["owner", "manager", "contractor"] },
+    { id: "docs", label: "Documents", roles: ["owner", "manager", "contractor", "viewer"] },
+    { id: "team", label: "Team", roles: ["owner", "manager"] },
+    { id: "interest", label: "Interest", roles: ["owner", "manager"] },
+    { id: "investor", label: "Investor", roles: ["owner"] },
+    { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor", "viewer"] },
   ];
+  const tabs = allTabs.filter(t => t.roles.includes(userRole));
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
@@ -584,10 +588,10 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user }) {
         <div style={{ maxWidth: 1150, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={onBack} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif", flexShrink: 0 }}><Icons.Back />{!isMobile && " Dashboard"}</button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter lot address..." style={{ background: "transparent", border: "none", color: "#fff", fontSize: isMobile ? 15 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} />
+            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter lot address..." style={{ background: "transparent", border: "none", color: "#fff", fontSize: isMobile ? 15 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} readOnly={!isOwner} />
           </div>
           {saving && <span style={{ fontSize: 12, color: "#64748b", flexShrink: 0 }}>Saving...</span>}
-          {!isMobile && <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ background: "transparent", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Trash /> Delete</button>}
+          {isOwner && !isMobile && <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ background: "transparent", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Trash /> Delete</button>}
         </div>
       </div>
 
@@ -606,14 +610,20 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user }) {
           </div>
         </div>
 
-        {!isMobile && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
+        {isOwner && !isMobile && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
             <div><label style={labelStyle}>Owner</label><input defaultValue={local.owner} onBlur={e => saveField("owner", e.target.value)} placeholder="Owner / Developer" style={fieldStyle} /></div>
             <div><label style={labelStyle}>Budget</label>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14 }}>$</span>
                 <input type="number" defaultValue={local.budget} onBlur={e => saveField("budget", e.target.value)} placeholder="0" style={{ ...fieldStyle, paddingLeft: 24 }} />
               </div>
+            </div>
+            <div><label style={labelStyle}>Type</label>
+              <select defaultValue={local.lot_type || "construction"} onBlur={e => saveField("lot_type", e.target.value)} style={{ ...fieldStyle }}>
+                <option value="construction">Under Construction</option>
+                <option value="vacant">Vacant Lot</option>
+              </select>
             </div>
             <div><label style={labelStyle}>Notes</label><input defaultValue={local.notes} onBlur={e => saveField("notes", e.target.value)} placeholder="General notes..." style={fieldStyle} /></div>
           </div>
@@ -635,8 +645,8 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user }) {
                 <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>Status / Actions</div>
               </div>
             )}
-            {phases.map(phase => <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} user={user} />)}
-            {isMobile && (
+            {phases.map(phase => <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} user={user} isOwner={isOwner} />)}
+            {isOwner && isMobile && (
               <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ width: "100%", marginTop: 20, background: "#fff", border: "1.5px solid #fecaca", color: "#ef4444", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
                 <Icons.Trash /> Delete Lot
               </button>
@@ -645,36 +655,263 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user }) {
         )}
         {activeTab === "punch" && <PunchListTab lotId={lot.id} user={user} />}
         {activeTab === "docs" && <DocumentsTab lotId={lot.id} user={user} />}
-        {activeTab === "team" && <TeamTab lotId={lot.id} user={user} />}
+        {activeTab === "team" && <TeamTab lotId={lot.id} user={user} isOwner={isOwner} />}
         {activeTab === "interest" && <InterestTab lotId={lot.id} />}
-        {activeTab === "investor" && <InvestorTab lotId={lot.id} user={user} />}
+        {activeTab === "investor" && <InvestorTab lotId={lot.id} user={user} isOwner={isOwner} />}
         {activeTab === "activity" && <ActivityLog lotId={lot.id} />}
       </div>
     </div>
   );
 }
 
-// Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline }) {
+// Prospective Lots (inline - no separate file needed)
+function ProspectiveLots({ user, onConvert, isMobile }) {
   const [lots, setLots] = useState([]);
-  const [filterBy, setFilterBy] = useState("all");
-  const [lotPhases, setLotPhases] = useState({});
+  const [selected, setSelected] = useState(null);
+  const [showMap, setShowMap] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [adding, setAdding] = useState(false);
+  const STATUSES = ["Scouting", "Interested", "Offer Made", "Under Contract", "Passed"];
+  const STATUS_COLORS = {
+    "Scouting":       { bg: "#f8fafc", border: "#e2e8f0", color: "#64748b" },
+    "Interested":     { bg: "#fffbeb", border: "#fde68a", color: "#92400e" },
+    "Offer Made":     { bg: "#eff6ff", border: "#bfdbfe", color: "#1e40af" },
+    "Under Contract": { bg: G3,        border: "#bbf7d0", color: "#166534" },
+    "Passed":         { bg: "#fef2f2", border: "#fecaca", color: "#991b1b" },
+  };
 
   useEffect(() => { loadLots(); }, []);
 
   const loadLots = async () => {
-    const { data: lotsData } = await supabase.from("lots").select("*").order("created_at");
+    const { data } = await supabase.from("prospective_lots").select("*").order("created_at", { ascending: false });
+    if (data) setLots(data);
+  };
+
+  const addLot = async () => {
+    setAdding(true);
+    const { data } = await supabase.from("prospective_lots").insert({ address: "", status: "Scouting", created_by: user.id }).select().single();
+    if (data) { loadLots(); setSelected(data); }
+    setAdding(false);
+  };
+
+  const deleteLot = async (id) => {
+    await supabase.from("prospective_lots").delete().eq("id", id);
+    setSelected(null); loadLots();
+  };
+
+  const convertLot = async (lot) => {
+    const { data: newLot } = await supabase.from("lots").insert({ address: lot.address, notes: lot.notes, budget: lot.estimated_value, lot_type: "construction" }).select().single();
+    if (newLot) {
+      const phaseRows = PHASES.map(name => ({ lot_id: newLot.id, phase_name: name, status: "not_started" }));
+      await supabase.from("phases").insert(phaseRows);
+      await supabase.from("prospective_lots").update({ status: "Under Contract" }).eq("id", lot.id);
+      alert(`Converted! "${lot.address}" is now an active development.`);
+      setSelected(null); loadLots(); onConvert();
+    }
+  };
+
+  const saveField = async (id, field, value) => {
+    await supabase.from("prospective_lots").update({ [field]: value || null }).eq("id", id);
+    if (selected && selected.id === id) setSelected(p => ({ ...p, [field]: value }));
+    loadLots();
+  };
+
+  const uploadPhoto = async (lotId, files) => {
+    for (const file of files) {
+      const path = `prospective/${lotId}/photos/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from("lot-files").upload(path, file);
+      if (!error) await supabase.from("prospective_photos").insert({ lot_id: lotId, file_name: file.name, file_path: path, uploaded_by: user.id });
+    }
+  };
+
+  const sc = (status) => STATUS_COLORS[status] || STATUS_COLORS["Scouting"];
+  const filtered = filterStatus === "all" ? lots : lots.filter(l => l.status === filterStatus);
+  const followUpDue = lots.filter(l => { if (!l.follow_up_date) return false; const today = new Date().toISOString().split("T")[0]; return l.follow_up_date <= today && l.status !== "Passed"; });
+
+  if (selected) {
+    const [photos, setPhotos] = useState([]);
+    const [docs, setDocs] = useState([]);
+
+    useEffect(() => {
+      supabase.from("prospective_photos").select("*").eq("lot_id", selected.id).order("created_at", { ascending: false }).then(({ data }) => { if (data) setPhotos(data); });
+      supabase.from("prospective_docs").select("*").eq("lot_id", selected.id).order("created_at", { ascending: false }).then(({ data }) => { if (data) setDocs(data); });
+    }, [selected.id]);
+
+    const getUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
+
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <button onClick={() => { setSelected(null); loadLots(); }} style={{ ...btnOutline, padding: "7px 12px" }}><Icons.Back /> Pipeline</button>
+          <div style={{ flex: 1, fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#1e293b" }}>{selected.address || "New Prospective Lot"}</div>
+          <button onClick={() => { if (window.confirm("Convert to active development?")) convertLot(selected); }} style={{ ...btnGreen, padding: "7px 14px", fontSize: 12 }}><Icons.Convert /> Convert</button>
+          <button onClick={() => { if (window.confirm("Delete?")) deleteLot(selected.id); }} style={{ background: "transparent", border: "1px solid #fecaca", color: "#ef4444", borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Trash /></button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div><label style={labelStyle}>Address</label><input defaultValue={selected.address || ""} onBlur={e => saveField(selected.id, "address", e.target.value)} placeholder="Address or description" style={fieldStyle} /></div>
+          <div><label style={labelStyle}>Status</label>
+            <select value={selected.status} onChange={e => saveField(selected.id, "status", e.target.value)} style={fieldStyle}>
+              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div><label style={labelStyle}>Est. Value</label>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>$</span>
+              <input type="number" defaultValue={selected.estimated_value || ""} onBlur={e => saveField(selected.id, "estimated_value", e.target.value)} placeholder="0" style={{ ...fieldStyle, paddingLeft: 24 }} />
+            </div>
+          </div>
+          <div><label style={labelStyle}>Follow-up Date</label><input type="date" defaultValue={selected.follow_up_date || ""} onBlur={e => saveField(selected.id, "follow_up_date", e.target.value)} style={fieldStyle} /></div>
+        </div>
+        <div style={{ marginBottom: 16 }}><label style={labelStyle}>Notes</label><textarea defaultValue={selected.notes || ""} onBlur={e => saveField(selected.id, "notes", e.target.value)} placeholder="Notes about this lot..." rows={3} style={{ ...fieldStyle, resize: "vertical" }} /></div>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Photos</label>
+              <label style={{ ...btnGreen, padding: "6px 12px", fontSize: 12 }}>
+                <Icons.Camera />Add Photos
+                <input type="file" accept="image/*" multiple capture="environment" onChange={async e => { await uploadPhoto(selected.id, Array.from(e.target.files)); const { data } = await supabase.from("prospective_photos").select("*").eq("lot_id", selected.id).order("created_at", { ascending: false }); if (data) setPhotos(data); }} style={{ display: "none" }} />
+              </label>
+            </div>
+            {photos.length === 0 ? <div style={{ ...cardStyle, textAlign: "center", padding: 30, color: "#94a3b8" }}>No photos yet</div> :
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                {photos.map(p => <div key={p.id} style={{ borderRadius: 10, overflow: "hidden", aspectRatio: "1" }} onClick={() => window.open(getUrl(p.file_path), "_blank")}><img src={getUrl(p.file_path)} style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "pointer" }} /></div>)}
+              </div>
+            }
+          </div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Documents</label>
+              <label style={{ ...btnOutline, padding: "6px 12px", fontSize: 12 }}>
+                <Icons.Upload />Upload
+                <input type="file" multiple onChange={async e => { for (const file of Array.from(e.target.files)) { const path = `prospective/${selected.id}/docs/${Date.now()}_${file.name}`; const { error } = await supabase.storage.from("lot-files").upload(path, file); if (!error) await supabase.from("prospective_docs").insert({ lot_id: selected.id, file_name: file.name, file_path: path, uploaded_by: user.id }); } const { data } = await supabase.from("prospective_docs").select("*").eq("lot_id", selected.id).order("created_at", { ascending: false }); if (data) setDocs(data); }} style={{ display: "none" }} />
+              </label>
+            </div>
+            {docs.length === 0 ? <div style={{ ...cardStyle, textAlign: "center", padding: 30, color: "#94a3b8" }}>No documents yet</div> :
+              docs.map(doc => (
+                <div key={doc.id} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 10, marginBottom: 6, padding: "10px 12px" }}>
+                  <Icons.File />
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1e293b", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.file_name}</div>
+                  <button onClick={() => window.open(getUrl(doc.file_path), "_blank")} style={{ background: G3, border: `1px solid ${G}`, borderRadius: 6, color: G2, padding: "4px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Open</button>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {followUpDue.length > 0 && (
+        <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <Icons.Bell />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>{followUpDue.length} follow-up{followUpDue.length > 1 ? "s" : ""} due</div>
+            <div style={{ fontSize: 12, color: "#b45309" }}>{followUpDue.map(l => l.address || "Unnamed").join(", ")}</div>
+          </div>
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        {["all", ...STATUSES].map(s => (
+          <button key={s} onClick={() => setFilterStatus(s)} style={{ padding: "5px 12px", borderRadius: 20, border: `1.5px solid ${filterStatus === s ? G : "#e2e8f0"}`, background: filterStatus === s ? G3 : "#fff", color: filterStatus === s ? G2 : "#64748b", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: filterStatus === s ? 700 : 500, whiteSpace: "nowrap" }}>{s === "all" ? "All" : s}</button>
+        ))}
+        <div style={{ marginLeft: "auto" }}>
+          <button onClick={() => setShowMap(!showMap)} style={{ padding: "5px 14px", borderRadius: 20, border: `1.5px solid ${showMap ? G : "#e2e8f0"}`, background: showMap ? G3 : "#fff", color: showMap ? G2 : "#64748b", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
+            <Icons.Map />{showMap ? "List View" : "Map View"}
+          </button>
+        </div>
+      </div>
+      {showMap && (
+        <div style={{ ...cardStyle, marginBottom: 16, padding: 0, overflow: "hidden" }}>
+          <div style={{ height: 360 }}>
+            <iframe title="Map" width="100%" height="100%" frameBorder="0" style={{ border: 0 }}
+              src={lots.filter(l => l.address && l.status !== "Passed").length > 0
+                ? `https://maps.google.com/maps?q=${lots.filter(l => l.address && l.status !== "Passed").map(l => encodeURIComponent(l.address)).join("|")}&output=embed`
+                : `https://maps.google.com/maps?q=Lake+Havasu+City,+Arizona&z=12&output=embed`}
+              allowFullScreen />
+          </div>
+        </div>
+      )}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+          <div style={{ fontSize: 16, color: "#1e293b", fontWeight: 600, marginBottom: 6 }}>No prospective lots yet</div>
+          <p style={{ fontSize: 14, margin: 0, color: "#94a3b8" }}>Add lots you're scouting.</p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: 12, marginBottom: 80 }}>
+          {filtered.map(lot => {
+            const s = sc(lot.status);
+            const today = new Date().toISOString().split("T")[0];
+            const followUp = lot.follow_up_date && lot.follow_up_date <= today;
+            return (
+              <div key={lot.id} onClick={() => setSelected(lot)} style={{ background: "#fff", border: `1.5px solid ${followUp ? "#fde68a" : s.border}`, borderRadius: 14, padding: 16, cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", transition: "all 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)"; }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", fontFamily: "'DM Serif Display', serif", flex: 1, marginRight: 8 }}>
+                    {lot.address || <span style={{ color: "#cbd5e1", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>No address set</span>}
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: s.bg, color: s.color, border: `1px solid ${s.border}`, whiteSpace: "nowrap", flexShrink: 0 }}>{lot.status}</span>
+                </div>
+                {lot.estimated_value && <div style={{ fontSize: 13, color: "#475569", fontWeight: 600, marginBottom: 6 }}>{formatCurrency(lot.estimated_value)}</div>}
+                {lot.notes && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{lot.notes}</div>}
+                {lot.follow_up_date && <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: followUp ? "#d97706" : "#64748b", fontWeight: followUp ? 700 : 400 }}><Icons.Bell />{followUp ? "Follow-up due!" : `Follow up: ${lot.follow_up_date}`}</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 50 }}>
+        <button onClick={addLot} disabled={adding} style={{ ...btnGreen, borderRadius: "50%", padding: 16, boxShadow: `0 4px 20px rgba(74,222,128,0.3)` }}><Icons.Plus /></button>
+      </div>
+    </div>
+  );
+}
+
+// Dashboard
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwner, userLotIds }) {
+  const [lots, setLots] = useState([]);
+  const [filterBy, setFilterBy] = useState("all");
+  const [lotPhases, setLotPhases] = useState({});
+  const [lotInterest, setLotInterest] = useState({});
+
+  useEffect(() => { loadLots(); }, []);
+
+  const loadLots = async () => {
+    let query = supabase.from("lots").select("*").order("created_at");
+    const { data: lotsData } = await query;
     if (lotsData) {
-      setLots(lotsData);
-      for (const lot of lotsData) {
+      // Filter lots based on role
+      const visibleLots = isOwner ? lotsData : lotsData.filter(l => userLotIds.includes(l.id));
+      setLots(visibleLots);
+      for (const lot of visibleLots) {
         const { data: phases } = await supabase.from("phases").select("*").eq("lot_id", lot.id);
         if (phases) setLotPhases(p => ({ ...p, [lot.id]: phases }));
+        // Load interest for daily burn
+        if (isOwner) {
+          const { data: loans } = await supabase.from("interest_loans").select("*").eq("lot_id", lot.id);
+          const { data: draws } = loans ? await supabase.from("loan_draws").select("*").in("loan_id", loans.map(l => l.id)) : { data: [] };
+          if (loans && draws) {
+            let dailyBurn = 0;
+            for (const loan of loans) {
+              const loanDraws = draws.filter(d => d.loan_id === loan.id);
+              for (const draw of loanDraws) {
+                if (draw.amount && draw.draw_date) {
+                  dailyBurn += (parseFloat(draw.amount) * (loan.interest_rate / 100)) / 365;
+                }
+              }
+            }
+            setLotInterest(p => ({ ...p, [lot.id]: dailyBurn }));
+          }
+        }
       }
     }
   };
 
   const addLot = async () => {
-    const { data: lotData } = await supabase.from("lots").insert({ address: "", owner: "", budget: "", notes: "" }).select().single();
+    const { data: lotData } = await supabase.from("lots").insert({ address: "", owner: "", budget: "", notes: "", lot_type: "construction" }).select().single();
     if (lotData) {
       const phaseRows = PHASES.map(name => ({ lot_id: lotData.id, phase_name: name, status: STATUS.NOT_STARTED }));
       await supabase.from("phases").insert(phaseRows);
@@ -685,7 +922,10 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline }) {
 
   const getPhases = (lotId) => lotPhases[lotId] || [];
 
-  const filtered = lots.filter(l => {
+  const constructionLots = lots.filter(l => !l.lot_type || l.lot_type === "construction");
+  const vacantLots = lots.filter(l => l.lot_type === "vacant");
+
+  const filtered = (lotList) => lotList.filter(l => {
     const phases = getPhases(l.id);
     if (filterBy === "inprogress") return phases.some(p => p.status === STATUS.IN_PROGRESS);
     if (filterBy === "overdue") return countOverdue(phases) > 0;
@@ -695,6 +935,41 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline }) {
   });
 
   const totalOverdue = lots.reduce((s, l) => s + countOverdue(getPhases(l.id)), 0);
+  const totalDailyBurn = Object.values(lotInterest).reduce((s, v) => s + v, 0);
+
+  const LotCard = ({ lot }) => {
+    const phases = getPhases(lot.id);
+    const prog = getOverallProgress(phases);
+    const overdue = countOverdue(phases);
+    const dailyBurn = lotInterest[lot.id] || 0;
+    return (
+      <div onClick={() => onSelect(lot)}
+        style={{ ...cardStyle, cursor: "pointer", borderColor: overdue > 0 ? "#fecaca" : "#e2e8f0" }}
+        onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; e.currentTarget.style.borderColor = overdue > 0 ? "#ef4444" : G; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)"; e.currentTarget.style.borderColor = overdue > 0 ? "#fecaca" : "#e2e8f0"; }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", fontFamily: "'DM Serif Display', serif", flex: 1, marginRight: 8 }}>
+            {lot.address || <span style={{ color: "#cbd5e1", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 400 }}>No address set</span>}
+          </div>
+          {overdue > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, background: "#fee2e2", color: "#991b1b", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, flexShrink: 0 }}><Icons.Warn />{overdue} overdue</span>}
+        </div>
+        {lot.owner && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{l
+        {lot.owner && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{lot.owner}</div>}
+        {lot.budget && <div style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 600 }}>{formatCurrency(lot.budget)}</div>}
+        {isOwner && dailyBurn > 0 && <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 8, fontWeight: 600 }}>{formatCurrency(dailyBurn)}/day interest</div>}
+        <div style={{ background: "#f1f5f9", borderRadius: 99, height: 7, overflow: "hidden", marginBottom: 8 }}>
+          <div style={{ width: `${prog.pct}%`, height: "100%", background: prog.pct === 100 ? G2 : `linear-gradient(90deg, #000, ${G})`, borderRadius: 99 }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 12, color: "#94a3b8" }}>{prog.complete}/{prog.total} phases</span>
+          <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: prog.pct === 100 ? G3 : "#f0fdf4", color: prog.pct === 100 ? G2 : "#16a34a", fontWeight: 700, border: `1px solid ${prog.pct === 100 ? G : "#bbf7d0"}` }}>{prog.pct}%</span>
+        </div>
+        <div style={{ paddingTop: 8, borderTop: "1px solid #f1f5f9", fontSize: 12, color: "#94a3b8" }}>
+          <span style={{ color: "#64748b", fontWeight: 500 }}>Current: </span>{getCurrentPhase(phases)}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif", paddingBottom: 80 }}>
@@ -715,27 +990,40 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline }) {
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px" : "24px 32px" }}>
-        {/* View toggle */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-          <button style={{ ...btnGreen, padding: "8px 18px", fontSize: 13 }}>Active Developments</button>
-          <button onClick={onShowPipeline} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>
-            <Icons.Map /> Prospective Pipeline
-          </button>
-        </div>
+        {isOwner && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            <button style={{ ...btnGreen, padding: "8px 18px", fontSize: 13 }}>Active Developments</button>
+            <button onClick={onShowPipeline} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}><Icons.Map /> Prospective Pipeline</button>
+          </div>
+        )}
 
         {lots.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isOwner ? "repeat(5, 1fr)" : "repeat(3, 1fr)", gap: 10, marginBottom: 24 }}>
             {[
               { label: "Total Lots", value: lots.length, color: "#1e293b" },
-              { label: "In Progress", value: lots.filter(l => getPhases(l.id).some(p => p.status === STATUS.IN_PROGRESS)).length, color: "#d97706" },
+              { label: "Under Construction", value: constructionLots.length, color: "#d97706" },
+              { label: "Vacant Lots", value: vacantLots.length, color: "#64748b" },
               { label: "Complete", value: lots.filter(l => getOverallProgress(getPhases(l.id)).pct === 100).length, color: G2 },
               { label: "Overdue Phases", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#94a3b8" },
-            ].map(s => (
+            ].filter((_, i) => isOwner || i < 3).map(s => (
               <div key={s.label} style={{ ...cardStyle, borderColor: s.label === "Overdue Phases" && totalOverdue > 0 ? "#fecaca" : "#e2e8f0" }}>
-                <div style={{ fontSize: isMobile ? 28 : 32, fontWeight: 700, color: s.color, fontFamily: "'DM Serif Display', serif" }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 700, color: s.color, fontFamily: "'DM Serif Display', serif" }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {isOwner && totalDailyBurn > 0 && (
+          <div style={{ background: "#fff", border: "1.5px solid #fecaca", borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Portfolio Interest Burn</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#ef4444", fontFamily: "'DM Serif Display', serif" }}>{formatCurrency(totalDailyBurn)}/day</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 12, color: "#94a3b8" }}>Monthly</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#d97706" }}>{formatCurrency(totalDailyBurn * 30)}/mo</div>
+            </div>
           </div>
         )}
 
@@ -750,65 +1038,56 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline }) {
         {lots.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0" }}>
             <div style={{ fontSize: 56, marginBottom: 16 }}>🏗️</div>
-            <div style={{ fontSize: 18, color: "#1e293b", fontWeight: 600, marginBottom: 6 }}>No active lots yet</div>
+            <div style={{ fontSize: 18, color: "#1e293b", fontWeight: 600, marginBottom: 6 }}>No lots yet</div>
             <p style={{ fontSize: 14, margin: 0, color: "#94a3b8" }}>Add your first development to get started.</p>
           </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 0" }}>
-            <p style={{ fontSize: 15, margin: 0, color: "#94a3b8" }}>No lots match this filter.</p>
-          </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
-            {filtered.map(lot => {
-              const phases = getPhases(lot.id);
-              const prog = getOverallProgress(phases);
-              const overdue = countOverdue(phases);
-              return (
-                <div key={lot.id} onClick={() => onSelect(lot)}
-                  style={{ ...cardStyle, cursor: "pointer", borderColor: overdue > 0 ? "#fecaca" : "#e2e8f0" }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; e.currentTarget.style.borderColor = overdue > 0 ? "#ef4444" : G; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)"; e.currentTarget.style.borderColor = overdue > 0 ? "#fecaca" : "#e2e8f0"; }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", fontFamily: "'DM Serif Display', serif", flex: 1, marginRight: 8 }}>
-                      {lot.address || <span style={{ color: "#cbd5e1", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 400 }}>No address set</span>}
-                    </div>
-                    {overdue > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, background: "#fee2e2", color: "#991b1b", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, flexShrink: 0 }}><Icons.Warn />{overdue} overdue</span>}
-                  </div>
-                  {lot.owner && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{lot.owner}</div>}
-                  {lot.budget && <div style={{ fontSize: 13, color: "#475569", marginBottom: 10, fontWeight: 600 }}>{formatCurrency(lot.budget)}</div>}
-                  <div style={{ background: "#f1f5f9", borderRadius: 99, height: 7, overflow: "hidden", marginBottom: 10, marginTop: lot.budget ? 0 : 10 }}>
-                    <div style={{ width: `${prog.pct}%`, height: "100%", background: prog.pct === 100 ? G2 : `linear-gradient(90deg, #000, ${G})`, borderRadius: 99 }} />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <span style={{ fontSize: 12, color: "#94a3b8" }}>{prog.complete}/{prog.total} phases</span>
-                    <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: prog.pct === 100 ? G3 : "#f0fdf4", color: prog.pct === 100 ? G2 : "#16a34a", fontWeight: 700, border: `1px solid ${prog.pct === 100 ? G : "#bbf7d0"}` }}>{prog.pct}%</span>
-                  </div>
-                  <div style={{ paddingTop: 10, borderTop: "1px solid #f1f5f9", fontSize: 12, color: "#94a3b8" }}>
-                    <span style={{ color: "#64748b", fontWeight: 500 }}>Current: </span>{getCurrentPhase(phases)}
-                  </div>
+          <>
+            {filtered(constructionLots).length > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Under Construction</div>
+                  <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#92400e", fontWeight: 700 }}>{filtered(constructionLots).length}</div>
                 </div>
-              );
-            })}
-          </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
+                  {filtered(constructionLots).map(lot => <LotCard key={lot.id} lot={lot} />)}
+                </div>
+              </div>
+            )}
+            {filtered(vacantLots).length > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Vacant Lots / Inventory</div>
+                  <div style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#64748b", fontWeight: 700 }}>{filtered(vacantLots).length}</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
+                  {filtered(vacantLots).map(lot => <LotCard key={lot.id} lot={lot} />)}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 50 }}>
-        <button onClick={addLot} style={{ display: "flex", alignItems: "center", gap: 8, background: "#000", color: G, border: `2px solid ${G}`, borderRadius: isMobile ? "50%" : 12, padding: isMobile ? 16 : "12px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 4px 20px rgba(74,222,128,0.3)` }}>
-          <Icons.Plus />{!isMobile && "Add New Lot"}
-        </button>
-      </div>
+      {isOwner && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 50 }}>
+          <button onClick={addLot} style={{ display: "flex", alignItems: "center", gap: 8, background: "#000", color: G, border: `2px solid ${G}`, borderRadius: isMobile ? "50%" : 12, padding: isMobile ? 16 : "12px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 4px 20px rgba(74,222,128,0.3)` }}>
+            <Icons.Plus />{!isMobile && "Add New Lot"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-// App Root
 export default function App() {
   const [user, setUser] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [investorToken, setInvestorToken] = useState(null);
   const [showPipeline, setShowPipeline] = useState(false);
+  const [userLotIds, setUserLotIds] = useState([]);
+  const [userRole, setUserRole] = useState("owner");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -825,6 +1104,21 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    if (user.email === OWNER_EMAIL) { setUserRole("owner"); return; }
+    supabase.from("lot_members").select("*").eq("user_email", user.email).then(({ data }) => {
+      if (data && data.length > 0) {
+        setUserLotIds(data.map(m => m.lot_id));
+        const roles = data.map(m => m.role);
+        if (roles.includes("manager")) setUserRole("manager");
+        else if (roles.includes("contractor")) setUserRole("contractor");
+        else setUserRole("viewer");
+      }
+    });
+  }, [user]);
+
+  const isOwner = userRole === "owner";
   const signOut = () => supabase.auth.signOut();
 
   const reloadLot = async () => {
@@ -835,6 +1129,11 @@ export default function App() {
 
   if (investorToken) return <InvestorView token={investorToken} />;
   if (!user) return <AuthScreen />;
+
+  const getLotUserRole = (lotId) => {
+    if (isOwner) return "owner";
+    return userRole;
+  };
 
   return (
     <>
@@ -860,13 +1159,30 @@ export default function App() {
             </div>
           </div>
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "20px 24px" }}>
-            <ProspectiveLots user={user} onConvert={() => setShowPipeline(false)} />
+            <ProspectiveLots user={user} onConvert={() => setShowPipeline(false)} isMobile={isMobile} />
           </div>
         </div>
       ) : selectedLot ? (
-        <LotDetail lot={selectedLot} onBack={() => setSelectedLot(null)} onDelete={async (id) => { await supabase.from("lots").delete().eq("id", id); setSelectedLot(null); }} onUpdate={reloadLot} isMobile={isMobile} user={user} />
+        <LotDetail
+          lot={selectedLot}
+          onBack={() => setSelectedLot(null)}
+          onDelete={async (id) => { await supabase.from("lots").delete().eq("id", id); setSelectedLot(null); }}
+          onUpdate={reloadLot}
+          isMobile={isMobile}
+          user={user}
+          isOwner={isOwner}
+          userRole={getLotUserRole(selectedLot.id)}
+        />
       ) : (
-        <Dashboard user={user} onSelect={setSelectedLot} onSignOut={signOut} isMobile={isMobile} onShowPipeline={() => setShowPipeline(true)} />
+        <Dashboard
+          user={user}
+          onSelect={setSelectedLot}
+          onSignOut={signOut}
+          isMobile={isMobile}
+          onShowPipeline={() => setShowPipeline(true)}
+          isOwner={isOwner}
+          userLotIds={userLotIds}
+        />
       )}
     </>
   );

@@ -872,6 +872,94 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
   );
 }
 
+
+// Action Items Dashboard Component
+function ActionItemsDashboard({ lots, user }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => { loadItems(); }, [lots]);
+
+  const loadItems = async () => {
+    if (!lots.length) { setLoading(false); return; }
+    setLoading(true);
+    const allItems = [];
+    for (const lot of lots) {
+      const { data: phases } = await supabase.from("phases").select("id, phase_name").eq("lot_id", lot.id);
+      if (!phases) continue;
+      for (const phase of phases) {
+        const { data: checklist } = await supabase.from("phase_checklist").select("*").eq("phase_id", phase.id).eq("completed", false);
+        if (checklist && checklist.length > 0) {
+          checklist.forEach(item => allItems.push({ ...item, lot_address: lot.address, lot_id: lot.id, phase_name: phase.phase_name }));
+        }
+      }
+    }
+    setItems(allItems);
+    setLoading(false);
+  };
+
+  const completeItem = async (item) => {
+    await supabase.from("phase_checklist").update({ completed: true, completed_by: user.id, completed_at: new Date().toISOString() }).eq("id", item.id);
+    loadItems();
+  };
+
+  if (loading) return null;
+  if (items.length === 0) return null;
+
+  // Group by lot
+  const grouped = items.reduce((acc, item) => {
+    const key = item.lot_address || item.lot_id;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+
+  return (
+    <div style={{ marginBottom: 24, background: "linear-gradient(135deg, #000 0%, #0f172a 100%)", border: `2px solid ${G}`, borderRadius: 16, overflow: "hidden" }}>
+      {/* Header */}
+      <div onClick={() => setCollapsed(p => !p)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", cursor: "pointer" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ background: G, borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>⚡</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }}>Open Action Items</div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>{items.length} item{items.length > 1 ? "s" : ""} need attention across {Object.keys(grouped).length} lot{Object.keys(grouped).length > 1 ? "s" : ""}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ background: G, color: "#000", borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 800 }}>{items.length}</div>
+          <div style={{ color: "#64748b", fontSize: 16 }}>{collapsed ? "▼" : "▲"}</div>
+        </div>
+      </div>
+
+      {/* Items */}
+      {!collapsed && (
+        <div style={{ borderTop: `1px solid #1e293b` }}>
+          {Object.entries(grouped).map(([lotAddress, lotItems]) => (
+            <div key={lotAddress} style={{ borderBottom: "1px solid #1e293b" }}>
+              <div style={{ padding: "8px 18px 4px", fontSize: 11, color: G, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                🏠 {lotAddress || "Unnamed Lot"}
+              </div>
+              {lotItems.map(item => (
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 18px" }}>
+                  <button onClick={() => completeItem(item)} style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${G}`, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = G; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                  </button>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, color: "#e5e7eb" }}>{item.item}</div>
+                    <div style={{ fontSize: 11, color: "#475569" }}>{item.phase_name}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Dashboard
 function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwner, userLotIds, theme, toggleTheme }) {
   const [lots, setLots] = useState([]);
@@ -1045,6 +1133,8 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
             ))}
           </div>
         )}
+
+        {isOwner && <ActionItemsDashboard lots={lots} user={user} />}
 
         {isOwner && totalDailyBurn > 0 && (
           <div style={{ background: "#fff", border: "1.5px solid #fecaca", borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>

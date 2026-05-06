@@ -575,7 +575,6 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
     { id: "phases", label: "Phases", roles: ["owner", "manager", "contractor", "viewer"] },
     { id: "punch", label: "Punch List", roles: ["owner", "manager", "contractor"] },
     { id: "docs", label: "Documents", roles: ["owner", "manager", "contractor", "viewer"] },
-    { id: "team", label: "Team", roles: ["owner", "manager"] },
     { id: "interest", label: "Interest", roles: ["owner", "manager"] },
     { id: "investor", label: "Investor", roles: ["owner", "manager"] },
     { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor", "viewer"] },
@@ -970,8 +969,136 @@ function ActionItemsDashboard({ lots, user }) {
   );
 }
 
+
+// Global Team Management
+function GlobalTeam({ onBack }) {
+  const [members, setMembers] = useState([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("contractor");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const ROLES = [
+    { value: "manager", label: "Manager", desc: "All tabs, all lots" },
+    { value: "superintendent", label: "Superintendent", desc: "All tabs, all lots" },
+    { value: "contractor", label: "Contractor", desc: "Phases, Docs, Punch List, Activity" },
+    { value: "viewer", label: "Viewer", desc: "Read only" },
+  ];
+
+  const ROLE_COLORS = {
+    manager: { bg: "#eff6ff", color: "#1e40af", border: "#bfdbfe" },
+    superintendent: { bg: "#f5f3ff", color: "#5b21b6", border: "#ddd6fe" },
+    contractor: { bg: "#fffbeb", color: "#92400e", border: "#fde68a" },
+    viewer: { bg: "#f8fafc", color: "#475569", border: "#e2e8f0" },
+  };
+
+  useEffect(() => { loadMembers(); }, []);
+
+  const loadMembers = async () => {
+    const { data } = await supabase.from("global_team").select("*").order("created_at");
+    if (data) setMembers(data);
+  };
+
+  const addMember = async () => {
+    if (!name.trim() || !email.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("global_team").insert({ full_name: name.trim(), email: email.trim().toLowerCase(), role });
+    if (error) {
+      if (error.code === "23505") setMsg("That email is already on the team.");
+      else setMsg("Error adding member.");
+    } else {
+      setMsg(`${name} added as ${role}!`);
+      setName(""); setEmail("");
+      loadMembers();
+    }
+    setSaving(false);
+    setTimeout(() => setMsg(""), 3000);
+  };
+
+  const updateRole = async (id, newRole) => {
+    await supabase.from("global_team").update({ role: newRole }).eq("id", id);
+    loadMembers();
+  };
+
+  const removeMember = async (id) => {
+    if (!window.confirm("Remove this team member?")) return;
+    await supabase.from("global_team").delete().eq("id", id);
+    loadMembers();
+  };
+
+  const rc = (role) => ROLE_COLORS[role] || ROLE_COLORS.viewer;
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ background: "#000", borderBottom: `3px solid ${G}`, padding: "14px 24px", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={onBack} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Back /> Dashboard</button>
+          <div style={{ fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>Team Management</div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px" }}>
+        {/* Role legend */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 24 }}>
+          {ROLES.map(r => (
+            <div key={r.value} style={{ background: rc(r.value).bg, border: `1.5px solid ${rc(r.value).border}`, borderRadius: 10, padding: "10px 14px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: rc(r.value).color }}>{r.label}</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{r.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Add member form */}
+        <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 14, padding: 20, marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>Add Team Member</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <div><label style={labelStyle}>Full Name</label><input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Micah Figley" style={{ ...fieldStyle, fontSize: 13, padding: "9px 12px" }} /></div>
+            <div><label style={labelStyle}>Email</label><input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" type="email" style={{ ...fieldStyle, fontSize: 13, padding: "9px 12px" }} /></div>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Role</label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {ROLES.map(r => (
+                <button key={r.value} onClick={() => setRole(r.value)} style={{ padding: "8px 6px", borderRadius: 8, border: `2px solid ${role === r.value ? rc(r.value).border : "#e2e8f0"}`, background: role === r.value ? rc(r.value).bg : "#fff", color: role === r.value ? rc(r.value).color : "#64748b", fontSize: 12, fontWeight: role === r.value ? 700 : 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{r.label}</button>
+              ))}
+            </div>
+          </div>
+          {msg && <div style={{ fontSize: 12, color: msg.includes("Error") || msg.includes("already") ? "#ef4444" : G2, background: msg.includes("Error") || msg.includes("already") ? "#fef2f2" : G3, padding: "8px 12px", borderRadius: 8, marginBottom: 10 }}>{msg}</div>}
+          <button onClick={addMember} disabled={saving || !name.trim() || !email.trim()} style={{ ...btnGreen, padding: "10px 20px", opacity: (!name.trim() || !email.trim()) ? 0.5 : 1 }}>{saving ? "Adding..." : "Add Member"}</button>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 10 }}>They need to sign up at your app URL using this email to access the app.</div>
+        </div>
+
+        {/* Team list */}
+        {members.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8", fontSize: 14 }}>No team members yet.</div>
+        ) : (
+          <div>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Team Members ({members.length})</div>
+            {members.map(m => (
+              <div key={m.id} style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 12, padding: "14px 16px", marginBottom: 10, display: "flex", alignItems: "center", gap: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#000", border: `2px solid ${G}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: G, fontWeight: 700, flexShrink: 0 }}>
+                  {(m.full_name || m.email || "?")[0].toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{m.full_name}</div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>{m.email}</div>
+                </div>
+                <select value={m.role} onChange={e => updateRole(m.id, e.target.value)} style={{ background: rc(m.role).bg, border: `1.5px solid ${rc(m.role).border}`, borderRadius: 8, color: rc(m.role).color, fontSize: 12, fontWeight: 700, padding: "5px 10px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", outline: "none" }}>
+                  {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+                <button onClick={() => removeMember(m.id)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer", flexShrink: 0 }}><Icons.Trash /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwner, userLotIds, theme, toggleTheme }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, isOwner, userLotIds, theme, toggleTheme }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
@@ -1118,6 +1245,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
             <button style={{ ...btnGreen, padding: "8px 18px", fontSize: 13 }}>Active Developments</button>
             <button onClick={onShowPipeline} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}><Icons.Map /> Prospective Pipeline</button>
+            <button onClick={onShowTeam} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>👥 Team</button>
             <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search lots..." style={{ width: "100%", background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, color: isDark ? "#f1f5f9" : "#1e293b", fontSize: 13, padding: "8px 14px 8px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
               <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1234,6 +1362,7 @@ export default function App() {
   const [userLotIds, setUserLotIds] = useState([]);
   const [userRole, setUserRole] = useState("owner");
   const [theme, setTheme] = useState("light");
+  const [showTeam, setShowTeam] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1257,12 +1386,11 @@ export default function App() {
       if (data?.theme) setTheme(data.theme);
     });
     if (user.email === OWNER_EMAIL) { setUserRole("owner"); return; }
-    supabase.from("lot_members").select("*").eq("user_email", user.email).then(({ data }) => {
-      if (data && data.length > 0) {
-        setUserLotIds(data.map(m => m.lot_id));
-        const roles = data.map(m => m.role);
-        if (roles.includes("manager")) setUserRole("manager");
-        else if (roles.includes("contractor")) setUserRole("contractor");
+    supabase.from("global_team").select("role").eq("email", user.email).single().then(({ data }) => {
+      if (data) {
+        const r = data.role;
+        if (r === "manager" || r === "superintendent") setUserRole("manager");
+        else if (r === "contractor") setUserRole("contractor");
         else setUserRole("viewer");
       }
     });
@@ -1304,7 +1432,9 @@ export default function App() {
         body { margin: 0; background: #f8fafc; }
         textarea { font-family: 'DM Sans', sans-serif; }
       `}</style>
-      {showPipeline ? (
+      {showTeam ? (
+        <GlobalTeam onBack={() => setShowTeam(false)} />
+      ) : showPipeline ? (
         <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
           <div style={{ background: "#000", borderBottom: `3px solid ${G}`, padding: "14px 24px", position: "sticky", top: 0, zIndex: 10 }}>
             <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
@@ -1336,6 +1466,7 @@ export default function App() {
           onSignOut={signOut}
           isMobile={isMobile}
           onShowPipeline={() => setShowPipeline(true)}
+          onShowTeam={() => setShowTeam(true)}
           isOwner={isOwner}
           userLotIds={userLotIds}
           theme={theme}

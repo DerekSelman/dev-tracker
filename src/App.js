@@ -884,18 +884,28 @@ function ActionItemsDashboard({ lots, user }) {
   const loadItems = async () => {
     if (!lots.length) { setLoading(false); return; }
     setLoading(true);
-    const allItems = [];
-    for (const lot of lots) {
-      const { data: phases } = await supabase.from("phases").select("id, phase_name").eq("lot_id", lot.id);
-      if (!phases) continue;
-      for (const phase of phases) {
-        const { data: checklist } = await supabase.from("phase_checklist").select("*").eq("phase_id", phase.id).eq("completed", false);
-        if (checklist && checklist.length > 0) {
-          checklist.forEach(item => allItems.push({ ...item, lot_address: lot.address, lot_id: lot.id, phase_name: phase.phase_name }));
-        }
+    try {
+      const lotIds = lots.map(l => l.id);
+      // Single call to get all incomplete checklist items across all lots
+      const { data: checklistItems } = await supabase
+        .from("phase_checklist")
+        .select("*, phases(phase_name, lot_id)")
+        .eq("completed", false)
+        .in("lot_id", lotIds);
+
+      if (checklistItems) {
+        const lotMap = {};
+        lots.forEach(l => { lotMap[l.id] = l.address; });
+        const allItems = checklistItems.map(item => ({
+          ...item,
+          lot_address: lotMap[item.lot_id] || "Unknown",
+          phase_name: item.phases?.phase_name || "Unknown Phase",
+        }));
+        setItems(allItems);
       }
+    } catch(e) {
+      console.error("Error loading action items:", e);
     }
-    setItems(allItems);
     setLoading(false);
   };
 

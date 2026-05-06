@@ -279,7 +279,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
 
   return (
     <div style={{ marginBottom: 6 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 108px 108px 108px 108px 160px", gap: 8, alignItems: "center", padding: "10px 14px", borderRadius: expanded ? "10px 10px 0 0" : 10, background: sc.bg, border: `1.5px solid ${sc.border}` }}>
+      <div onClick={() => setExpanded(p => !p)} style={{ display: "grid", gridTemplateColumns: "36px 1fr 108px 108px 108px 108px 160px", gap: 8, alignItems: "center", padding: "10px 14px", borderRadius: expanded ? "10px 10px 0 0" : 10, background: sc.bg, border: `1.5px solid ${sc.border}`, cursor: "pointer" }}>
         <button onClick={cycleStatus} style={{ width: 32, height: 32, borderRadius: "50%", border: `2px solid ${overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot}`, background: phase.status === STATUS.COMPLETE ? cfg.dot : "#fff", color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {phase.status === STATUS.COMPLETE ? <Icons.Check /> : phase.status === STATUS.IN_PROGRESS ? (hasChecklistWarning ? "!" : "▶") : ""}
         </button>
@@ -620,8 +620,9 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
               </div>
             </div>
             <div><label style={labelStyle}>Type</label>
-              <select defaultValue={local.lot_type || "construction"} onBlur={e => saveField("lot_type", e.target.value)} style={{ ...fieldStyle }}>
-                <option value="construction">Under Construction</option>
+              <select defaultValue={local.lot_type || "spec"} onBlur={e => saveField("lot_type", e.target.value)} style={{ ...fieldStyle }}>
+                <option value="spec">Spec Home</option>
+                <option value="customer">Customer Home</option>
                 <option value="vacant">Vacant Lot</option>
               </select>
             </div>
@@ -702,7 +703,7 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
   };
 
   const convertLot = async (lot) => {
-    const { data: newLot } = await supabase.from("lots").insert({ address: lot.address, notes: lot.notes, budget: lot.estimated_value, lot_type: "construction" }).select().single();
+    const { data: newLot } = await supabase.from("lots").insert({ address: lot.address, notes: lot.notes, budget: lot.estimated_value, lot_type: "spec" }).select().single();
     if (newLot) {
       const phaseRows = PHASES.map(name => ({ lot_id: newLot.id, phase_name: name, status: "not_started" }));
       await supabase.from("phases").insert(phaseRows);
@@ -912,7 +913,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
   };
 
   const addLot = async () => {
-    const { data: lotData } = await supabase.from("lots").insert({ address: "", owner: "", budget: "", notes: "", lot_type: "construction" }).select().single();
+    const { data: lotData } = await supabase.from("lots").insert({ address: "", owner: "", budget: "", notes: "", lot_type: "spec" }).select().single();
     if (lotData) {
       const phaseRows = PHASES.map(name => ({ lot_id: lotData.id, phase_name: name, status: STATUS.NOT_STARTED }));
       await supabase.from("phases").insert(phaseRows);
@@ -923,7 +924,8 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
 
   const getPhases = (lotId) => lotPhases[lotId] || [];
 
-  const constructionLots = lots.filter(l => !l.lot_type || l.lot_type === "construction");
+  const specLots = lots.filter(l => !l.lot_type || l.lot_type === "spec" || l.lot_type === "construction");
+  const customerLots = lots.filter(l => l.lot_type === "customer");
   const vacantLots = lots.filter(l => l.lot_type === "vacant");
 
   const filtered = (lotList) => lotList.filter(l => {
@@ -998,14 +1000,15 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
         )}
 
         {lots.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isOwner ? "repeat(5, 1fr)" : "repeat(3, 1fr)", gap: 10, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isOwner ? "repeat(6, 1fr)" : "repeat(3, 1fr)", gap: 10, marginBottom: 24 }}>
             {[
               { label: "Total Lots", value: lots.length, color: "#1e293b" },
-              { label: "Under Construction", value: constructionLots.length, color: "#d97706" },
+              { label: "Spec Homes", value: specLots.length, color: "#d97706" },
+              { label: "Customer Homes", value: customerLots.length, color: "#3b82f6" },
               { label: "Vacant Lots", value: vacantLots.length, color: "#64748b" },
               { label: "Complete", value: lots.filter(l => getOverallProgress(getPhases(l.id)).pct === 100).length, color: G2 },
               { label: "Overdue Phases", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#94a3b8" },
-            ].filter((_, i) => isOwner || i < 3).map(s => (
+            ].filter((_, i) => isOwner || i < 4).map(s => (
               <div key={s.label} style={{ ...cardStyle, borderColor: s.label === "Overdue Phases" && totalOverdue > 0 ? "#fecaca" : "#e2e8f0" }}>
                 <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 700, color: s.color, fontFamily: "'DM Serif Display', serif" }}>{s.value}</div>
                 <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{s.label}</div>
@@ -1043,14 +1046,25 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
           </div>
         ) : (
           <>
-            {filtered(constructionLots).length > 0 && (
+            {filtered(specLots).length > 0 && (
               <div style={{ marginBottom: 28 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Under Construction</div>
-                  <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#92400e", fontWeight: 700 }}>{filtered(constructionLots).length}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Spec Homes</div>
+                  <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#92400e", fontWeight: 700 }}>{filtered(specLots).length}</div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
-                  {filtered(constructionLots).map(lot => <LotCard key={lot.id} lot={lot} />)}
+                  {filtered(specLots).map(lot => <LotCard key={lot.id} lot={lot} />)}
+                </div>
+              </div>
+            )}
+            {filtered(customerLots).length > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Customer Homes</div>
+                  <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#1e40af", fontWeight: 700 }}>{filtered(customerLots).length}</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
+                  {filtered(customerLots).map(lot => <LotCard key={lot.id} lot={lot} />)}
                 </div>
               </div>
             )}

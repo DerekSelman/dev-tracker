@@ -1,4 +1,5 @@
 export const PHASES = [
+  "Survey","Plans / Engineer","City Permit",
   "Grading Lot","Walls","Pool","House Layout","Underground","Foundation",
   "Framing","Rough Mechanicals","Lathing","Drywall / Tape / Texture",
   "Paint","Cabinets","Floor Tile & Showers","Trim Out","Cleaning","Punch List",

@@ -577,7 +577,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
     { id: "docs", label: "Documents", roles: ["owner", "manager", "contractor", "viewer"] },
     { id: "team", label: "Team", roles: ["owner", "manager"] },
     { id: "interest", label: "Interest", roles: ["owner", "manager"] },
-    { id: "investor", label: "Investor", roles: ["owner"] },
+    { id: "investor", label: "Investor", roles: ["owner", "manager"] },
     { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor", "viewer"] },
   ];
   const tabs = allTabs.filter(t => t.roles.includes(userRole));
@@ -992,7 +992,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
     const { data: lotsData } = await query;
     if (lotsData) {
       // Filter lots based on role
-      const visibleLots = isOwner ? lotsData : lotsData.filter(l => userLotIds.includes(l.id));
+      const visibleLots = lotsData;
       setLots(visibleLots);
       setLotsLoaded(true);
       for (const lot of visibleLots) {

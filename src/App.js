@@ -873,11 +873,18 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
 }
 
 // Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwner, userLotIds }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwner, userLotIds, theme, toggleTheme }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
   const [lotInterest, setLotInterest] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const isDark = theme === "dark";
+  const bg = isDark ? "#0a0f1a" : "#f8fafc";
+  const cardBg = isDark ? "#0f172a" : "#fff";
+  const cardBorder = isDark ? "#1e293b" : "#e2e8f0";
+  const textPrimary = isDark ? "#f1f5f9" : "#1e293b";
+  const textSecondary = isDark ? "#64748b" : "#64748b";
 
   useEffect(() => { loadLots(); }, []);
 
@@ -924,12 +931,24 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
 
   const getPhases = (lotId) => lotPhases[lotId] || [];
 
+  const duplicateLot = async (lot) => {
+    if (!window.confirm(`Duplicate "${lot.address || "this lot"}"? This will create a new lot with the same phases.`)) return;
+    const { data: newLot } = await supabase.from("lots").insert({ address: (lot.address || "") + " (Copy)", owner: lot.owner, budget: lot.budget, notes: lot.notes, lot_type: lot.lot_type }).select().single();
+    if (newLot) {
+      const phaseRows = PHASES.map(name => ({ lot_id: newLot.id, phase_name: name, status: "not_started" }));
+      await supabase.from("phases").insert(phaseRows);
+      loadLots();
+      alert("Lot duplicated!");
+    }
+  };
+
   const specLots = lots.filter(l => !l.lot_type || l.lot_type === "spec" || l.lot_type === "construction");
   const customerLots = lots.filter(l => l.lot_type === "customer");
   const vacantLots = lots.filter(l => l.lot_type === "vacant");
 
   const filtered = (lotList) => lotList.filter(l => {
     const phases = getPhases(l.id);
+    if (searchQuery && !((l.address || "").toLowerCase().includes(searchQuery.toLowerCase()) || (l.owner || "").toLowerCase().includes(searchQuery.toLowerCase()))) return false;
     if (filterBy === "inprogress") return phases.some(p => p.status === STATUS.IN_PROGRESS);
     if (filterBy === "overdue") return countOverdue(phases) > 0;
     if (filterBy === "complete") return getOverallProgress(phases).pct === 100;
@@ -969,12 +988,18 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
         <div style={{ paddingTop: 8, borderTop: "1px solid #f1f5f9", fontSize: 12, color: "#94a3b8" }}>
           <span style={{ color: "#64748b", fontWeight: 500 }}>Current: </span>{getCurrentPhase(phases)}
         </div>
+        {lot.notes && <div style={{ marginTop: 8, fontSize: 11, color: "#94a3b8", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", fontStyle: "italic" }}>{lot.notes}</div>}
+        {isOwner && (
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={e => { e.stopPropagation(); duplicateLot(lot); }} style={{ background: "transparent", border: "1px solid #e2e8f0", borderRadius: 6, color: "#94a3b8", padding: "3px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Duplicate</button>
+          </div>
+        )}
       </div>
     );
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif", paddingBottom: 80 }}>
+    <div style={{ minHeight: "100vh", background: isDark ? "#0a0f1a" : "#f8fafc", fontFamily: "'DM Sans', sans-serif", paddingBottom: 80 }}>
       <div style={{ background: "#000", borderBottom: `3px solid ${G}`, padding: isMobile ? "14px 16px" : "16px 32px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -993,9 +1018,16 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px" : "24px 32px" }}>
         {isOwner && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
             <button style={{ ...btnGreen, padding: "8px 18px", fontSize: 13 }}>Active Developments</button>
             <button onClick={onShowPipeline} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}><Icons.Map /> Prospective Pipeline</button>
+            <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search lots..." style={{ width: "100%", background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, color: isDark ? "#f1f5f9" : "#1e293b", fontSize: 13, padding: "8px 14px 8px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
+              <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <button onClick={toggleTheme} style={{ background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontSize: 18, lineHeight: 1 }} title="Toggle dark/light mode">
+              {isDark ? "☀️" : "🌙"}
+            </button>
           </div>
         )}
 
@@ -1102,6 +1134,7 @@ export default function App() {
   const [showPipeline, setShowPipeline] = useState(false);
   const [userLotIds, setUserLotIds] = useState([]);
   const [userRole, setUserRole] = useState("owner");
+  const [theme, setTheme] = useState("light");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1120,6 +1153,10 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
+    // Load theme preference
+    supabase.from("user_preferences").select("theme").eq("id", user.id).single().then(({ data }) => {
+      if (data?.theme) setTheme(data.theme);
+    });
     if (user.email === OWNER_EMAIL) { setUserRole("owner"); return; }
     supabase.from("lot_members").select("*").eq("user_email", user.email).then(({ data }) => {
       if (data && data.length > 0) {
@@ -1134,6 +1171,11 @@ export default function App() {
 
   const isOwner = userRole === "owner";
   const signOut = () => supabase.auth.signOut();
+  const toggleTheme = async () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    await supabase.from("user_preferences").upsert({ id: user?.id, theme: newTheme });
+  };
 
   const reloadLot = async () => {
     if (!selectedLot) return;
@@ -1167,7 +1209,7 @@ export default function App() {
         <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
           <div style={{ background: "#000", borderBottom: `3px solid ${G}`, padding: "14px 24px", position: "sticky", top: 0, zIndex: 10 }}>
             <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
-              <button onClick={() => setShowPipeline(false)} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Back /> Dashboard</button>
+              <button onClick={() => { setShowPipeline(false); }} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Back /> Dashboard</button>
               <div style={{ color: G }}><Icons.Map /></div>
               <div style={{ fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>Prospective Pipeline</div>
             </div>
@@ -1186,6 +1228,7 @@ export default function App() {
           user={user}
           isOwner={isOwner}
           userRole={getLotUserRole(selectedLot.id)}
+          theme={theme}
         />
       ) : (
         <Dashboard
@@ -1196,6 +1239,8 @@ export default function App() {
           onShowPipeline={() => setShowPipeline(true)}
           isOwner={isOwner}
           userLotIds={userLotIds}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
       )}
     </>

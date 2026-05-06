@@ -28,10 +28,10 @@ function AuthScreen() {
     <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", padding: 20 }}>
       <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 20, padding: 36, width: "100%", maxWidth: 420, boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-          <div style={{ background: "#000", borderRadius: 10, padding: 8, color: G }}><Icons.HardHat /></div>
+          <img src="/logo192.png" alt="Dev Tracker" style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover" }} />
           <div>
             <div style={{ fontSize: 20, fontFamily: "'DM Serif Display', serif", color: "#0f172a", fontWeight: 400, lineHeight: 1.2 }}>Dev Tracker</div>
-            <div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.1em", textTransform: "uppercase" }}>Selman & Associates</div>
+            <div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.1em", textTransform: "uppercase" }}>Derek Selman</div>
           </div>
         </div>
         <div style={{ height: 2, background: `linear-gradient(90deg, ${G}, #000)`, borderRadius: 2, marginBottom: 24 }} />
@@ -94,7 +94,7 @@ function InvestorView({ token }) {
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap'); * { box-sizing: border-box; } body { margin: 0; }`}</style>
       <div style={{ background: "#000", padding: "20px 24px", borderBottom: `3px solid ${G}` }}>
         <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ color: G }}><Icons.HardHat /></div>
+          <img src="/logo192.png" alt="Dev Tracker" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover" }} />
           <div>
             <div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.12em", textTransform: "uppercase" }}>Project Update · Selman & Associates</div>
             <div style={{ fontSize: 20, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>{lot?.address || "Development Project"}</div>
@@ -1003,11 +1003,8 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
       <div style={{ background: "#000", borderBottom: `3px solid ${G}`, padding: isMobile ? "14px 16px" : "16px 32px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ color: G }}><Icons.HardHat /></div>
-            <div>
-              <div style={{ fontSize: isMobile ? 18 : 22, fontFamily: "'DM Serif Display', serif", color: "#fff", fontWeight: 400, lineHeight: 1.2 }}>Dev Tracker</div>
-              {!isMobile && <div style={{ fontSize: 10, color: "#64748b", letterSpacing: "0.12em", textTransform: "uppercase" }}>Selman & Associates</div>}
-            </div>
+            <img src="/logo192.png" alt="Dev Tracker" style={{ width: isMobile ? 32 : 40, height: isMobile ? 32 : 40, borderRadius: 8, objectFit: "cover" }} />
+            <div style={{ fontSize: isMobile ? 18 : 22, fontFamily: "'DM Serif Display', serif", color: "#fff", fontWeight: 400, lineHeight: 1.2 }}>Dev Tracker</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {!isMobile && <span style={{ fontSize: 12, color: "#475569" }}>{user.email}</span>}
@@ -1210,7 +1207,7 @@ export default function App() {
           <div style={{ background: "#000", borderBottom: `3px solid ${G}`, padding: "14px 24px", position: "sticky", top: 0, zIndex: 10 }}>
             <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
               <button onClick={() => { setShowPipeline(false); }} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Back /> Dashboard</button>
-              <div style={{ color: G }}><Icons.Map /></div>
+              <img src="/logo192.png" alt="Dev Tracker" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} />
               <div style={{ fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>Prospective Pipeline</div>
             </div>
           </div>

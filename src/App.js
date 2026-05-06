@@ -671,6 +671,8 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
   const [showMap, setShowMap] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [adding, setAdding] = useState(false);
+  const [photos, setPhotos] = useState([]);
+  const [docs, setDocs] = useState([]);
   const STATUSES = ["Scouting", "Interested", "Offer Made", "Under Contract", "Passed"];
   const STATUS_COLORS = {
     "Scouting":       { bg: "#f8fafc", border: "#e2e8f0", color: "#64748b" },
@@ -728,16 +730,15 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
   const filtered = filterStatus === "all" ? lots : lots.filter(l => l.status === filterStatus);
   const followUpDue = lots.filter(l => { if (!l.follow_up_date) return false; const today = new Date().toISOString().split("T")[0]; return l.follow_up_date <= today && l.status !== "Passed"; });
 
+  const getUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
+
+  useEffect(() => {
+    if (!selected) return;
+    supabase.from("prospective_photos").select("*").eq("lot_id", selected.id).order("created_at", { ascending: false }).then(({ data }) => { if (data) setPhotos(data); else setPhotos([]); });
+    supabase.from("prospective_docs").select("*").eq("lot_id", selected.id).order("created_at", { ascending: false }).then(({ data }) => { if (data) setDocs(data); else setDocs([]); });
+  }, [selected?.id]);
+
   if (selected) {
-    const [photos, setPhotos] = useState([]);
-    const [docs, setDocs] = useState([]);
-
-    useEffect(() => {
-      supabase.from("prospective_photos").select("*").eq("lot_id", selected.id).order("created_at", { ascending: false }).then(({ data }) => { if (data) setPhotos(data); });
-      supabase.from("prospective_docs").select("*").eq("lot_id", selected.id).order("created_at", { ascending: false }).then(({ data }) => { if (data) setDocs(data); });
-    }, [selected.id]);
-
-    const getUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
 
     return (
       <div>

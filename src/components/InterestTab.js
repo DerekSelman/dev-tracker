@@ -9,6 +9,9 @@ export default function InterestTab({ lotId }) {
   const [draws, setDraws] = useState({});
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [expandedLoan, setExpandedLoan] = useState(null);
+  const [payments, setPayments] = useState({});
+  const [showPaymentForm, setShowPaymentForm] = useState(null);
+  const [paymentForm, setPaymentForm] = useState({ payment_amount: "", payment_date: "", notes: "" });
   const [loanForm, setLoanForm] = useState({ lender_name: "", loan_amount: "", interest_rate: "", payment_due_day: "1", payment_frequency: "monthly", notes: "" });
   const [saving, setSaving] = useState(false);
 
@@ -21,6 +24,8 @@ export default function InterestTab({ lotId }) {
       for (const loan of loansData) {
         const { data: drawData } = await supabase.from("loan_draws").select("*").eq("loan_id", loan.id).order("draw_number");
         if (drawData) setDraws(p => ({ ...p, [loan.id]: drawData }));
+        const { data: payData } = await supabase.from("loan_payments").select("*").eq("loan_id", loan.id).order("payment_date", { ascending: false });
+        if (payData) setPayments(p => ({ ...p, [loan.id]: payData }));
       }
     }
   };
@@ -52,6 +57,19 @@ export default function InterestTab({ lotId }) {
     loadLoans();
   };
 
+  const savePayment = async (loanId) => {
+    if (!paymentForm.payment_amount || !paymentForm.payment_date) return;
+    await supabase.from("loan_payments").insert({ loan_id: loanId, lot_id: lotId, payment_amount: parseFloat(paymentForm.payment_amount), payment_date: paymentForm.payment_date, notes: paymentForm.notes });
+    setPaymentForm({ payment_amount: "", payment_date: "", notes: "" });
+    setShowPaymentForm(null);
+    loadLoans();
+  };
+
+  const deletePayment = async (id, loanId) => {
+    await supabase.from("loan_payments").delete().eq("id", id);
+    loadLoans();
+  };
+
   const updateDraw = async (loanId, drawNumber, field, value) => {
     const loanDraws = draws[loanId] || [];
     const existing = loanDraws.find(d => d.draw_number === drawNumber);
@@ -65,6 +83,20 @@ export default function InterestTab({ lotId }) {
   };
 
   const getDraw = (loanId, drawNumber) => (draws[loanId] || []).find(d => d.draw_number === drawNumber) || {};
+
+  const [editingLoan, setEditingLoan] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+  const startEdit = (loan) => {
+    setEditingLoan(loan.id);
+    setEditForm({ lender_name: loan.lender_name, loan_amount: loan.loan_amount, interest_rate: loan.interest_rate, payment_due_day: loan.payment_due_day, payment_frequency: loan.payment_frequency, notes: loan.notes || "" });
+  };
+
+  const saveEdit = async (loanId) => {
+    await supabase.from("interest_loans").update({ lender_name: editForm.lender_name, loan_amount: parseFloat(editForm.loan_amount), interest_rate: parseFloat(editForm.interest_rate), payment_due_day: parseInt(editForm.payment_due_day), payment_frequency: editForm.payment_frequency, notes: editForm.notes }).eq("id", loanId);
+    setEditingLoan(null);
+    loadLoans();
+  };
 
   const getLoanTotals = (loan) => {
     const loanDraws = draws[loan.id] || [];
@@ -194,6 +226,62 @@ export default function InterestTab({ lotId }) {
                   </div>
                 </div>
                 {loan.notes && <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>{loan.notes}</div>}
+
+            {/* Edit form */}
+            {editingLoan === loan.id && (
+              <div style={{ marginTop: 12, padding: 12, background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", marginBottom: 10 }}>Edit Loan Details</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                  <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Lender</div><input value={editForm.lender_name || ""} onChange={e => setEditForm(p => ({ ...p, lender_name: e.target.value }))} style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px" }} /></div>
+                  <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Commitment</div><input type="number" value={editForm.loan_amount || ""} onChange={e => setEditForm(p => ({ ...p, loan_amount: e.target.value }))} style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px" }} /></div>
+                  <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Rate %</div><input type="number" step="0.01" value={editForm.interest_rate || ""} onChange={e => setEditForm(p => ({ ...p, interest_rate: e.target.value }))} style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px" }} /></div>
+                  <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Due Day</div><input type="number" value={editForm.payment_due_day || ""} onChange={e => setEditForm(p => ({ ...p, payment_due_day: e.target.value }))} style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px" }} /></div>
+                </div>
+                <input value={editForm.notes || ""} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes" style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px", marginBottom: 8 }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => saveEdit(loan.id)} style={{ ...btnGreen, padding: "6px 14px", fontSize: 12 }}>Save</button>
+                  <button onClick={() => setEditingLoan(null)} style={{ ...btnOutline, padding: "6px 14px", fontSize: 12 }}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {/* Payment history */}
+            {(payments[loan.id] || []).length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Payment History</div>
+                {(payments[loan.id] || []).map(p => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>{formatCurrency(p.payment_amount)}</div>
+                      <div style={{ fontSize: 11, color: "#64748b" }}>{p.payment_date}{p.notes ? ` · ${p.notes}` : ""}</div>
+                    </div>
+                    <button onClick={() => deletePayment(p.id, loan.id)} style={{ background: "transparent", border: "none", color: "#e2e8f0", cursor: "pointer" }}><Icons.Trash /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {showPaymentForm === loan.id ? (
+              <div style={{ marginTop: 12, padding: 12, background: "#f0fdf4", borderRadius: 10, border: "1px solid #bbf7d0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#166534", marginBottom: 10 }}>Log Payment</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                  <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Amount</div>
+                    <div style={{ position: "relative" }}><span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>$</span><input type="number" value={paymentForm.payment_amount} onChange={e => setPaymentForm(p => ({ ...p, payment_amount: e.target.value }))} placeholder="0" style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px 6px 20px" }} /></div>
+                  </div>
+                  <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Date</div><input type="date" value={paymentForm.payment_date} onChange={e => setPaymentForm(p => ({ ...p, payment_date: e.target.value }))} style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px" }} /></div>
+                </div>
+                <input value={paymentForm.notes} onChange={e => setPaymentForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes (optional)" style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px", marginBottom: 8 }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => savePayment(loan.id)} style={{ ...btnGreen, padding: "6px 14px", fontSize: 12 }}>Log Payment</button>
+                  <button onClick={() => setShowPaymentForm(null)} style={{ ...btnOutline, padding: "6px 14px", fontSize: 12 }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button onClick={() => { setShowPaymentForm(loan.id); setEditingLoan(null); }} style={{ ...btnGreen, padding: "6px 14px", fontSize: 12 }}>+ Log Payment</button>
+                <button onClick={() => { startEdit(loan); setShowPaymentForm(null); }} style={{ ...btnOutline, padding: "6px 14px", fontSize: 12 }}>Edit Loan</button>
+              </div>
+            )}
               </div>
             )}
           </div>

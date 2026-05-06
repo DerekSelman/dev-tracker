@@ -953,7 +953,6 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
           </div>
           {overdue > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, background: "#fee2e2", color: "#991b1b", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, flexShrink: 0 }}><Icons.Warn />{overdue} overdue</span>}
         </div>
-        {lot.owner && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{l
         {lot.owner && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{lot.owner}</div>}
         {lot.budget && <div style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 600 }}>{formatCurrency(lot.budget)}</div>}
         {isOwner && dailyBurn > 0 && <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 8, fontWeight: 600 }}>{formatCurrency(dailyBurn)}/day interest</div>}

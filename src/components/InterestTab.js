@@ -351,7 +351,10 @@ export default function InterestTab({ lotId }) {
                     </div>
                   </div>
                 ) : (
-                  <button onClick={() => { setEditingLoan(loan.id); setEditForm({ lender_name: loan.lender_name, loan_amount: loan.loan_amount, interest_rate: loan.interest_rate, payment_due_day: loan.payment_due_day, notes: loan.notes || "" }); }} style={{ ...btnOutline, padding: "6px 14px", fontSize: 12, marginBottom: 12 }}>Edit Loan Details</button>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                    <button onClick={() => { setEditingLoan(loan.id); setEditForm({ lender_name: loan.lender_name, loan_amount: loan.loan_amount, interest_rate: loan.interest_rate, payment_due_day: loan.payment_due_day, notes: loan.notes || "" }); }} style={{ ...btnOutline, padding: "6px 14px", fontSize: 12 }}>Edit Loan Details</button>
+                    <button onClick={() => setShowManualPayment(loan.id)} style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, color: "#92400e", padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>+ Log Past Payment</button>
+                  </div>
                 )}
 
                 {/* Payment history */}

@@ -967,6 +967,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
   const [lotPhases, setLotPhases] = useState({});
   const [lotInterest, setLotInterest] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [lotsLoaded, setLotsLoaded] = useState(false);
   const isDark = theme === "dark";
   const bg = isDark ? "#0a0f1a" : "#f8fafc";
   const cardBg = isDark ? "#0f172a" : "#fff";
@@ -983,6 +984,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
       // Filter lots based on role
       const visibleLots = isOwner ? lotsData : lotsData.filter(l => userLotIds.includes(l.id));
       setLots(visibleLots);
+      setLotsLoaded(true);
       for (const lot of visibleLots) {
         const { data: phases } = await supabase.from("phases").select("*").eq("lot_id", lot.id);
         if (phases) setLotPhases(p => ({ ...p, [lot.id]: phases }));
@@ -1134,7 +1136,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, isOwne
           </div>
         )}
 
-        {isOwner && <ActionItemsDashboard lots={lots} user={user} />}
+        {isOwner && lotsLoaded && lots.length > 0 && <ActionItemsDashboard lots={lots} user={user} />}
 
         {isOwner && totalDailyBurn > 0 && (
           <div style={{ background: "#fff", border: "1.5px solid #fecaca", borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>

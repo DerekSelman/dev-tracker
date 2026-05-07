@@ -374,31 +374,7 @@ export default function InterestTab({ lotId }) {
                 )}
 
                 {/* Log past payment */}
-                {showManualPayment === loan.id ? (
-                  <div style={{ marginTop: 12, padding: 14, background: "#fffbeb", borderRadius: 10, border: "1.5px solid #fde68a" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e", marginBottom: 10 }}>Log Past Payment</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                      <div>
-                        <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Amount Paid</div>
-                        <div style={{ position: "relative" }}>
-                          <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>$</span>
-                          <input type="number" value={manualPaymentForm.amount} onChange={e => setManualPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px 6px 20px" }} />
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Payment Date</div>
-                        <input type="date" value={manualPaymentForm.date} onChange={e => setManualPaymentForm(p => ({ ...p, date: e.target.value }))} style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px" }} />
-                      </div>
-                    </div>
-                    <input value={manualPaymentForm.notes} onChange={e => setManualPaymentForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes (optional)" style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px", marginBottom: 10 }} />
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => saveManualPayment(loan.id)} disabled={!manualPaymentForm.amount || !manualPaymentForm.date} style={{ ...btnGreen, padding: "7px 16px", fontSize: 13, opacity: (!manualPaymentForm.amount || !manualPaymentForm.date) ? 0.5 : 1 }}>Save Payment</button>
-                      <button onClick={() => setShowManualPayment(null)} style={{ ...btnOutline, padding: "7px 16px", fontSize: 13 }}>Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button onClick={() => setShowManualPayment(loan.id)} style={{ ...btnOutline, padding: "6px 14px", fontSize: 12, marginTop: 8 }}>+ Log Past Payment</button>
-                )}
+
               </div>
             )}
           </div>

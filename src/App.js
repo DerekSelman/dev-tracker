@@ -215,12 +215,26 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
 
   const getPhotoUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
   const hasChecklistWarning = !checklistStatus.allDone && phase.status === STATUS.IN_PROGRESS;
+  // Smart date warnings
+  const today = new Date().toISOString().split("T")[0];
+  const endDate = phase.projected_end;
+  const startDate = phase.projected_start;
+  const daysUntilEnd = endDate ? Math.round((new Date(endDate) - new Date()) / 86400000) : null;
+  const daysUntilStart = startDate ? Math.round((new Date(startDate) - new Date()) / 86400000) : null;
+  const startingSoon = startDate && daysUntilStart !== null && daysUntilStart >= 0 && daysUntilStart <= 3 && phase.status === STATUS.NOT_STARTED;
+  const endingSoon = endDate && daysUntilEnd !== null && daysUntilEnd >= 0 && daysUntilEnd <= 3 && phase.status === STATUS.IN_PROGRESS;
+  const notStartedLate = startDate && startDate < today && phase.status === STATUS.NOT_STARTED;
+
   const statusColors = {
     [STATUS.NOT_STARTED]: { bg: "#f8fafc", border: "#e2e8f0" },
     [STATUS.IN_PROGRESS]: { bg: "#fffbeb", border: "#fde68a" },
     [STATUS.COMPLETE]: { bg: G3, border: "#bbf7d0" },
   };
-  const sc = overdue ? { bg: "#fef2f2", border: "#fecaca" } : statusColors[phase.status];
+  const sc = overdue ? { bg: "#fef2f2", border: "#fecaca" } 
+    : notStartedLate ? { bg: "#fef2f2", border: "#fecaca" }
+    : endingSoon ? { bg: "#fff7ed", border: "#fed7aa" }
+    : startingSoon ? { bg: "#fffbeb", border: "#fde68a" }
+    : statusColors[phase.status];
 
   if (isMobile) {
     return (
@@ -245,10 +259,8 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
         {expanded && (
           <div style={{ background: "#f8fafc", border: `1.5px solid ${sc.border}`, borderTop: "none", borderRadius: "0 0 12px 12px", padding: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Proj. Start</div><input type="date" defaultValue={phase.projected_start || ""} onBlur={e => updateField("projected_start", e.target.value)} style={dateInputStyle} /></div>
-              <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Proj. End</div><input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={dateInputStyle} /></div>
-              <div><div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Act. Start</div><input type="date" defaultValue={phase.actual_start || ""} onBlur={e => updateField("actual_start", e.target.value)} style={{ ...dateInputStyle, borderColor: "#bfdbfe" }} /></div>
-              <div><div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Act. End</div><input type="date" defaultValue={phase.actual_end || ""} onBlur={e => updateField("actual_end", e.target.value)} style={{ ...dateInputStyle, borderColor: "#bfdbfe" }} /></div>
+              <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Start Date</div><input type="date" defaultValue={phase.projected_start || ""} onBlur={e => updateField("projected_start", e.target.value)} style={dateInputStyle} /></div>
+              <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>End Date</div><input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={dateInputStyle} /></div>
             </div>
             <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", marginBottom: 10 }} />
             <PhaseChecklist phaseId={phase.id} lotId={lotId} user={user} onChecklistStatus={setChecklistStatus} />
@@ -279,7 +291,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
 
   return (
     <div style={{ marginBottom: 6 }}>
-      <div onClick={() => setExpanded(p => !p)} style={{ display: "grid", gridTemplateColumns: "36px 1fr 108px 108px 108px 108px 160px", gap: 8, alignItems: "center", padding: "10px 14px", borderRadius: expanded ? "10px 10px 0 0" : 10, background: sc.bg, border: `1.5px solid ${sc.border}`, cursor: "pointer" }}>
+      <div onClick={() => setExpanded(p => !p)} style={{ display: "grid", gridTemplateColumns: "36px 1fr 140px 140px 180px", gap: 8, alignItems: "center", padding: "10px 14px", borderRadius: expanded ? "10px 10px 0 0" : 10, background: sc.bg, border: `1.5px solid ${sc.border}`, cursor: "pointer" }}>
         <button onClick={cycleStatus} style={{ width: 32, height: 32, borderRadius: "50%", border: `2px solid ${overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot}`, background: phase.status === STATUS.COMPLETE ? cfg.dot : "#fff", color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {phase.status === STATUS.COMPLETE ? <Icons.Check /> : phase.status === STATUS.IN_PROGRESS ? (hasChecklistWarning ? "!" : "▶") : ""}
         </button>
@@ -289,10 +301,8 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
           {hasChecklistWarning && <span style={{ background: "#fffbeb", color: "#92400e", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, flexShrink: 0 }}>⚠ {checklistStatus.total - checklistStatus.done} open</span>}
           {photos.length > 0 && <span style={{ background: G3, color: G2, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, flexShrink: 0 }}>{photos.length} photo{photos.length > 1 ? "s" : ""}</span>}
         </div>
-        <input type="date" defaultValue={phase.projected_start || ""} onBlur={e => updateField("projected_start", e.target.value)} style={dateInputStyle} />
-        <input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={dateInputStyle} />
-        <input type="date" defaultValue={phase.actual_start || ""} onBlur={e => updateField("actual_start", e.target.value)} style={{ ...dateInputStyle, borderColor: "#bfdbfe" }} />
-        <input type="date" defaultValue={phase.actual_end || ""} onBlur={e => updateField("actual_end", e.target.value)} style={{ ...dateInputStyle, borderColor: "#bfdbfe" }} />
+        <input type="date" defaultValue={phase.projected_start || ""} onBlur={e => updateField("projected_start", e.target.value)} style={dateInputStyle} placeholder="Start" title="Start Date" />
+        <input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={dateInputStyle} placeholder="End" title="End Date" />
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <button onClick={cycleStatus} style={{ padding: "3px 8px", borderRadius: 20, border: `1.5px solid ${overdue ? "#fecaca" : hasChecklistWarning ? "#fde68a" : sc.border}`, background: sc.bg, color: overdue ? "#ef4444" : hasChecklistWarning ? "#d97706" : "#64748b", fontSize: 10, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", whiteSpace: "nowrap" }}>{overdue ? "Overdue" : hasChecklistWarning ? "Check List!" : cfg.label}</button>
           <label title="Upload photo" style={{ background: "#000", border: `1.5px solid ${G}`, borderRadius: 7, color: G, width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -572,12 +582,12 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
 
   // Tabs based on role
   const allTabs = [
-    { id: "phases", label: "Phases", roles: ["owner", "manager", "contractor", "viewer"] },
+    { id: "phases", label: "Phases", roles: ["owner", "manager", "contractor"] },
     { id: "punch", label: "Punch List", roles: ["owner", "manager", "contractor"] },
-    { id: "docs", label: "Documents", roles: ["owner", "manager", "contractor", "viewer"] },
+    { id: "docs", label: "Documents", roles: ["owner", "manager", "contractor"] },
     { id: "interest", label: "Interest", roles: ["owner", "manager"] },
     { id: "investor", label: "Investor", roles: ["owner", "manager"] },
-    { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor", "viewer"] },
+    { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor"] },
   ];
   const tabs = allTabs.filter(t => t.roles.includes(userRole));
 
@@ -638,10 +648,8 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
             {!isMobile && (
               <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 108px 108px 108px 108px 160px", gap: 8, padding: "4px 14px", marginBottom: 6 }}>
                 <div /><div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>Phase</div>
-                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>Proj. Start</div>
-                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>Proj. End</div>
-                <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase", fontWeight: 600 }}>Act. Start</div>
-                <div style={{ fontSize: 10, color: "#3b82f6", textTransform: "uppercase", fontWeight: 600 }}>Act. End</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>Start Date</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>End Date</div>
                 <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>Status / Actions</div>
               </div>
             )}
@@ -971,6 +979,180 @@ function ActionItemsDashboard({ lots, user }) {
 
 
 
+
+// Calendar View
+function CalendarView({ onBack, isMobile }) {
+  const [lots, setLots] = useState([]);
+  const [phases, setPhases] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  useEffect(() => { 
+    supabase.from("lots").select("*").then(({ data }) => {
+      if (data) { setLots(data); }
+    });
+  }, []);
+
+  useEffect(() => { if (lots.length > 0) loadAllPhases(); }, [lots]);
+
+  const loadAllPhases = async () => {
+    setLoading(true);
+    const allPhases = {};
+    for (const lot of lots) {
+      const { data } = await supabase.from("phases").select("*").eq("lot_id", lot.id);
+      if (data) allPhases[lot.id] = { lot, phases: data.filter(p => p.projected_start || p.projected_end) };
+    }
+    setPhases(allPhases);
+    setLoading(false);
+  };
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days = [];
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      days.push(new Date(year, month, d));
+    }
+    return { days, firstDayOfWeek: firstDay.getDay() };
+  };
+
+  const getPhaseColor = (phase) => {
+    if (phase.status === "complete") return { bg: G2, text: "#fff" };
+    if (phase.status === "in_progress") return { bg: "#f59e0b", text: "#fff" };
+    return { bg: "#3b82f6", text: "#fff" };
+  };
+
+  const getPhasesForDay = (date) => {
+    const dateStr = date.toISOString().split("T")[0];
+    const result = [];
+    Object.values(phases).forEach(({ lot, phases: lotPhases }) => {
+      lotPhases.forEach(phase => {
+        const start = phase.projected_start;
+        const end = phase.projected_end;
+        if (start && end && dateStr >= start && dateStr <= end) {
+          result.push({ ...phase, lotAddress: lot.address });
+        } else if (start && !end && dateStr === start) {
+          result.push({ ...phase, lotAddress: lot.address });
+        }
+      });
+    });
+    return result;
+  };
+
+  const { days, firstDayOfWeek } = getDaysInMonth(currentMonth);
+  const today = new Date().toISOString().split("T")[0];
+  const monthName = currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Find overlapping days
+  const overlappingDays = days.filter(day => getPhasesForDay(day).length > 2).map(d => d.toISOString().split("T")[0]);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ background: "#000", borderBottom: `3px solid ${G}`, padding: "14px 24px", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={onBack} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Back /> Dashboard</button>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+            <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} style={{ background: "transparent", border: "1px solid #333", color: "#94a3b8", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 16 }}>‹</button>
+            <div style={{ fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#fff", minWidth: 200, textAlign: "center" }}>{monthName}</div>
+            <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} style={{ background: "transparent", border: "1px solid #333", color: "#94a3b8", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 16 }}>›</button>
+          </div>
+          <button onClick={() => setCurrentMonth(new Date())} style={{ background: "transparent", border: `1px solid ${G}`, color: G, borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}>Today</button>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "20px 24px" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px 0", color: "#64748b" }}>Loading calendar...</div>
+        ) : (
+          <>
+            {/* Legend */}
+            <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+              {[
+                { color: "#3b82f6", label: "Not Started" },
+                { color: "#f59e0b", label: "In Progress" },
+                { color: G2, label: "Complete" },
+                { color: "#ef4444", label: "Overlap (3+ jobs)" },
+              ].map(l => (
+                <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#64748b" }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: l.color }} />
+                  {l.label}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #e2e8f0", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {/* Day headers */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>
+                {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
+                  <div key={d} style={{ padding: "10px 0", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>{d}</div>
+                ))}
+              </div>
+
+              {/* Calendar days */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                {/* Empty cells for first week */}
+                {Array(firstDayOfWeek).fill(null).map((_, i) => (
+                  <div key={`empty-${i}`} style={{ minHeight: isMobile ? 60 : 100, borderRight: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }} />
+                ))}
+
+                {days.map(day => {
+                  const dateStr = day.toISOString().split("T")[0];
+                  const isToday = dateStr === today;
+                  const dayPhases = getPhasesForDay(day);
+                  const hasOverlap = dayPhases.length >= 3;
+                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+
+                  return (
+                    <div key={dateStr} style={{ minHeight: isMobile ? 60 : 100, borderRight: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9", padding: "6px", background: hasOverlap ? "#fef2f2" : isWeekend ? "#fafafa" : "#fff", position: "relative" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: isToday ? 700 : 400, color: isToday ? "#fff" : hasOverlap ? "#ef4444" : "#1e293b", background: isToday ? "#000" : "transparent", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {day.getDate()}
+                        </span>
+                        {hasOverlap && <span style={{ fontSize: 9, background: "#ef4444", color: "#fff", borderRadius: 10, padding: "1px 5px", fontWeight: 700 }}>⚠ {dayPhases.length}</span>}
+                      </div>
+                      {dayPhases.slice(0, isMobile ? 1 : 3).map((phase, i) => {
+                        const c = getPhaseColor(phase);
+                        return (
+                          <div key={phase.id + i} style={{ background: c.bg, color: c.text, fontSize: 9, borderRadius: 4, padding: "2px 4px", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${phase.lotAddress} - ${phase.phase_name}`}>
+                            {isMobile ? phase.phase_name.substring(0,8) : `${(phase.lotAddress || "").split(" ").slice(0,2).join(" ")} · ${phase.phase_name}`}
+                          </div>
+                        );
+                      })}
+                      {dayPhases.length > (isMobile ? 1 : 3) && (
+                        <div style={{ fontSize: 9, color: "#64748b", fontWeight: 600 }}>+{dayPhases.length - (isMobile ? 1 : 3)} more</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Overlap warnings */}
+            {overlappingDays.length > 0 && (
+              <div style={{ marginTop: 16, background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 12, padding: "14px 18px" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#991b1b", marginBottom: 8 }}>⚠ Scheduling Conflicts</div>
+                {overlappingDays.map(dateStr => {
+                  const date = new Date(dateStr + "T00:00:00");
+                  const dayPhases = getPhasesForDay(date);
+                  return (
+                    <div key={dateStr} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#dc2626" }}>{date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} — {dayPhases.length} jobs overlapping</div>
+                      {dayPhases.map(p => <div key={p.id} style={{ fontSize: 11, color: "#64748b", marginLeft: 10 }}>• {p.lotAddress} · {p.phase_name}</div>)}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Team Chat
 function TeamChat({ user, onBack, userRole }) {
   const [messages, setMessages] = useState([]);
@@ -1119,10 +1301,11 @@ function GlobalTeam({ onBack }) {
   const [msg, setMsg] = useState("");
 
   const ROLES = [
-    { value: "manager", label: "Manager", desc: "All tabs, all lots" },
-    { value: "superintendent", label: "Superintendent", desc: "All tabs, all lots" },
-    { value: "contractor", label: "Contractor", desc: "Phases, Docs, Punch List, Activity" },
-    { value: "viewer", label: "Viewer", desc: "Read only" },
+    { value: "manager", label: "Manager", desc: "Full access - same as owner" },
+    { value: "micah", label: "Micah Figley", desc: "Phases, Docs, Punch List, Activity, Chat" },
+    { value: "morgan", label: "Morgan Figley", desc: "Phases, Docs, Punch List, Activity, Chat" },
+    { value: "chris", label: "Chris Ropchak", desc: "Phases, Docs, Punch List, Activity, Chat" },
+    { value: "contractor", label: "Contractor", desc: "Phases, Docs, Punch List, Activity, Chat" },
   ];
 
   const ROLE_COLORS = {
@@ -1237,7 +1420,7 @@ function GlobalTeam({ onBack }) {
 }
 
 // Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, isOwner, userLotIds, theme, toggleTheme }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, onShowCalendar, isOwner, userLotIds, theme, toggleTheme }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
@@ -1355,11 +1538,20 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
           <span style={{ color: "#64748b", fontWeight: 500 }}>Current: </span>{getCurrentPhase(phases)}
         </div>
         {lot.notes && <div style={{ marginTop: 8, fontSize: 11, color: "#94a3b8", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", fontStyle: "italic" }}>{lot.notes}</div>}
-        {isOwner && (
-          <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={e => { e.stopPropagation(); duplicateLot(lot); }} style={{ background: "transparent", border: "1px solid #e2e8f0", borderRadius: 6, color: "#94a3b8", padding: "3px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Duplicate</button>
-          </div>
-        )}
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {lot.last_activity ? (
+            <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", gap: 4 }}>
+              <Icons.Clock />
+              {(() => {
+                const diff = Math.round((new Date() - new Date(lot.last_activity)) / 60000);
+                if (diff < 60) return `${diff}m ago`;
+                if (diff < 1440) return `${Math.round(diff/60)}h ago`;
+                return `${Math.round(diff/1440)}d ago`;
+              })()}
+            </div>
+          ) : <div />}
+          {isOwner && <button onClick={e => { e.stopPropagation(); duplicateLot(lot); }} style={{ background: "transparent", border: "1px solid #e2e8f0", borderRadius: 6, color: "#94a3b8", padding: "3px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Duplicate</button>}
+        </div>
       </div>
     );
   };
@@ -1374,20 +1566,19 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {!isMobile && <span style={{ fontSize: 12, color: "#475569" }}>{user.email}</span>}
+            <button onClick={onShowChat} style={{ background: "transparent", border: `1px solid ${G}`, color: G, borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>💬 {!isMobile && "Chat"}</button>
             <button onClick={onSignOut} style={{ background: "transparent", border: "1px solid #333", color: "#94a3b8", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Sign Out</button>
           </div>
         </div>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px" : "24px 32px" }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <button onClick={onShowChat} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>💬 Chat</button>
-        </div>
         {isOwner && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
             <button style={{ ...btnGreen, padding: "8px 18px", fontSize: 13 }}>Active Developments</button>
             <button onClick={onShowPipeline} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}><Icons.Map /> Prospective Pipeline</button>
             <button onClick={onShowTeam} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>👥 Team</button>
+            <button onClick={onShowCalendar} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>📅 Calendar</button>
             <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search lots..." style={{ width: "100%", background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, color: isDark ? "#f1f5f9" : "#1e293b", fontSize: 13, padding: "8px 14px 8px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
               <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1506,6 +1697,7 @@ export default function App() {
   const [theme, setTheme] = useState("light");
   const [showTeam, setShowTeam] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1532,9 +1724,8 @@ export default function App() {
     supabase.from("global_team").select("role").eq("email", user.email).single().then(({ data }) => {
       if (data) {
         const r = data.role;
-        if (r === "manager" || r === "superintendent") setUserRole("manager");
-        else if (r === "contractor") setUserRole("contractor");
-        else setUserRole("viewer");
+        if (r === "manager") setUserRole("manager");
+        else setUserRole("contractor"); // micah, morgan, chris, contractor, viewer all get contractor access
       }
     });
   }, [user]);
@@ -1565,7 +1756,8 @@ export default function App() {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        button, a, input, select { touch-action: manipulation; cursor: pointer; }
         input:focus, select:focus, textarea:focus { border-color: ${G} !important; outline: none; }
         input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
@@ -1575,7 +1767,26 @@ export default function App() {
         body { margin: 0; background: #f8fafc; }
         textarea { font-family: 'DM Sans', sans-serif; }
       `}</style>
-      {showChat ? (
+      {/* Mobile bottom nav */}
+      {isMobile && user && !showChat && !showTeam && !showPipeline && (
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#000", borderTop: `2px solid ${G}`, display: "flex", zIndex: 100, fontFamily: "'DM Sans', sans-serif" }}>
+          {[
+            { label: "Dashboard", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); } },
+            { label: "Chat", icon: "💬", action: () => setShowChat(true) },
+            { label: "Action Items", icon: "⚡", action: () => { setSelectedLot(null); setShowPipeline(false); } },
+            { label: "Calendar", icon: "📅", action: () => setShowCalendar(true) },
+          ].map(item => (
+            <button key={item.label} onClick={item.action} style={{ flex: 1, background: "transparent", border: "none", color: "#94a3b8", padding: "10px 0 8px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+              <span style={{ fontSize: 20 }}>{item.icon}</span>
+              <span style={{ fontSize: 10, color: "#64748b" }}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showCalendar ? (
+        <CalendarView onBack={() => setShowCalendar(false)} isMobile={isMobile} />
+      ) : showChat ? (
         <TeamChat user={user} onBack={() => setShowChat(false)} userRole={userRole} />
       ) : showTeam ? (
         <GlobalTeam onBack={() => setShowTeam(false)} />
@@ -1613,6 +1824,7 @@ export default function App() {
           onShowPipeline={() => setShowPipeline(true)}
           onShowTeam={() => setShowTeam(true)}
           onShowChat={() => setShowChat(true)}
+          onShowCalendar={() => setShowCalendar(true)}
           isOwner={isOwner}
           userLotIds={userLotIds}
           theme={theme}

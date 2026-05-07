@@ -1380,12 +1380,14 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px" : "24px 32px" }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <button onClick={onShowChat} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>💬 Chat</button>
+        </div>
         {isOwner && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
             <button style={{ ...btnGreen, padding: "8px 18px", fontSize: 13 }}>Active Developments</button>
             <button onClick={onShowPipeline} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}><Icons.Map /> Prospective Pipeline</button>
             <button onClick={onShowTeam} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>👥 Team</button>
-            <button onClick={onShowChat} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>💬 Chat</button>
             <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search lots..." style={{ width: "100%", background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, color: isDark ? "#f1f5f9" : "#1e293b", fontSize: 13, padding: "8px 14px 8px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
               <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>

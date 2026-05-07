@@ -970,6 +970,145 @@ function ActionItemsDashboard({ lots, user }) {
 }
 
 
+
+// Team Chat
+function TeamChat({ user, onBack, userRole }) {
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef(null);
+  const [globalTeam, setGlobalTeam] = useState([]);
+
+  useEffect(() => { 
+    loadMessages(); 
+    loadTeam();
+    // Poll for new messages every 10 seconds
+    const interval = setInterval(loadMessages, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const loadMessages = async () => {
+    const { data } = await supabase.from("team_messages").select("*").order("created_at", { ascending: true }).limit(100);
+    if (data) setMessages(data);
+  };
+
+  const loadTeam = async () => {
+    const { data } = await supabase.from("global_team").select("*");
+    if (data) setGlobalTeam(data);
+  };
+
+  const getMemberName = (email) => {
+    if (email === "derekselman@gmail.com") return "Derek";
+    const member = globalTeam.find(m => m.email === email);
+    return member ? member.full_name.split(" ")[0] : email.split("@")[0];
+  };
+
+  const getInitial = (email) => getMemberName(email)[0].toUpperCase();
+
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return;
+    setSending(true);
+    await supabase.from("team_messages").insert({
+      user_id: user.id,
+      user_email: user.email,
+      message: newMessage.trim()
+    });
+    setNewMessage("");
+    loadMessages();
+    setSending(false);
+  };
+
+  const fmt = (ts) => {
+    const d = new Date(ts);
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    if (isToday) return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  };
+
+  // Group consecutive messages from same user
+  const groupedMessages = messages.reduce((acc, msg, i) => {
+    const prev = messages[i - 1];
+    const isFirst = !prev || prev.user_email !== msg.user_email || 
+      (new Date(msg.created_at) - new Date(prev.created_at)) > 300000;
+    acc.push({ ...msg, isFirst });
+    return acc;
+  }, []);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "#000", borderBottom: `3px solid ${G}`, padding: "14px 24px", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={onBack} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Back /> Dashboard</button>
+          <div style={{ fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>Team Chat</div>
+          <div style={{ marginLeft: "auto", fontSize: 12, color: "#64748b" }}>Updates every 10s</div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, maxWidth: 800, margin: "0 auto", width: "100%", padding: "16px 24px", paddingBottom: 100, overflowY: "auto" }}>
+        {messages.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#1e293b", marginBottom: 6 }}>No messages yet</div>
+            <div style={{ fontSize: 13 }}>Start the conversation with your team!</div>
+          </div>
+        ) : (
+          groupedMessages.map(msg => {
+            const isMe = msg.user_email === user.email;
+            return (
+              <div key={msg.id} style={{ display: "flex", flexDirection: isMe ? "row-reverse" : "row", gap: 10, marginBottom: msg.isFirst ? 16 : 4, alignItems: "flex-end" }}>
+                {!isMe && msg.isFirst && (
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#000", border: `2px solid ${G}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: G, fontWeight: 700, flexShrink: 0 }}>
+                    {getInitial(msg.user_email)}
+                  </div>
+                )}
+                {!isMe && !msg.isFirst && <div style={{ width: 34, flexShrink: 0 }} />}
+                <div style={{ maxWidth: "70%" }}>
+                  {msg.isFirst && !isMe && (
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 600 }}>
+                      {getMemberName(msg.user_email)} · {fmt(msg.created_at)}
+                    </div>
+                  )}
+                  {msg.isFirst && isMe && (
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, textAlign: "right" }}>
+                      {fmt(msg.created_at)}
+                    </div>
+                  )}
+                  <div style={{ background: isMe ? "#000" : "#fff", color: isMe ? G : "#1e293b", border: isMe ? `1.5px solid ${G}` : "1.5px solid #e2e8f0", borderRadius: isMe ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "10px 14px", fontSize: 14, lineHeight: 1.5, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    {msg.message}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: "1.5px solid #e2e8f0", padding: "12px 24px", zIndex: 10 }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", gap: 10 }}>
+          <input 
+            value={newMessage} 
+            onChange={e => setNewMessage(e.target.value)} 
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
+            placeholder="Type a message..." 
+            style={{ ...fieldStyle, flex: 1, fontSize: 14, padding: "12px 16px" }} 
+          />
+          <button onClick={sendMessage} disabled={sending || !newMessage.trim()} style={{ background: newMessage.trim() ? "#000" : "#f1f5f9", color: newMessage.trim() ? G : "#cbd5e1", border: `2px solid ${newMessage.trim() ? G : "#e2e8f0"}`, borderRadius: 10, padding: "12px 20px", cursor: newMessage.trim() ? "pointer" : "default", fontSize: 14, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s", whiteSpace: "nowrap" }}>
+            {sending ? "..." : "Send"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Global Team Management
 function GlobalTeam({ onBack }) {
   const [members, setMembers] = useState([]);
@@ -1098,7 +1237,7 @@ function GlobalTeam({ onBack }) {
 }
 
 // Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, isOwner, userLotIds, theme, toggleTheme }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, isOwner, userLotIds, theme, toggleTheme }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
@@ -1246,6 +1385,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
             <button style={{ ...btnGreen, padding: "8px 18px", fontSize: 13 }}>Active Developments</button>
             <button onClick={onShowPipeline} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}><Icons.Map /> Prospective Pipeline</button>
             <button onClick={onShowTeam} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>👥 Team</button>
+            <button onClick={onShowChat} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>💬 Chat</button>
             <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search lots..." style={{ width: "100%", background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, color: isDark ? "#f1f5f9" : "#1e293b", fontSize: 13, padding: "8px 14px 8px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
               <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1274,7 +1414,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
           </div>
         )}
 
-        {isOwner && lotsLoaded && lots.length > 0 && <ActionItemsDashboard lots={lots} user={user} />}
+        {lotsLoaded && lots.length > 0 && <ActionItemsDashboard lots={lots} user={user} />}
 
         {isOwner && totalDailyBurn > 0 && (
           <div style={{ background: "#fff", border: "1.5px solid #fecaca", borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1363,6 +1503,7 @@ export default function App() {
   const [userRole, setUserRole] = useState("owner");
   const [theme, setTheme] = useState("light");
   const [showTeam, setShowTeam] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1432,7 +1573,9 @@ export default function App() {
         body { margin: 0; background: #f8fafc; }
         textarea { font-family: 'DM Sans', sans-serif; }
       `}</style>
-      {showTeam ? (
+      {showChat ? (
+        <TeamChat user={user} onBack={() => setShowChat(false)} userRole={userRole} />
+      ) : showTeam ? (
         <GlobalTeam onBack={() => setShowTeam(false)} />
       ) : showPipeline ? (
         <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
@@ -1467,6 +1610,7 @@ export default function App() {
           isMobile={isMobile}
           onShowPipeline={() => setShowPipeline(true)}
           onShowTeam={() => setShowTeam(true)}
+          onShowChat={() => setShowChat(true)}
           isOwner={isOwner}
           userLotIds={userLotIds}
           theme={theme}

@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { fieldStyle, G, G2, G3, Icons } from "../utils";
 
-export default function PhaseChecklist({ phaseId, lotId, user, onChecklistStatus }) {
+const PHASE_PRESETS = {
+  "Pool": ["Plan Submitted", "Dig", "Plumbing", "Rebar", "Shotcrete", "Tile", "Coping", "Plaster", "Lights", "Pool Equipment"],
+  "Trim Out": ["Countertops", "Plumbing Fixtures", "Electrical", "Appliances"],
+  "Rough Mechanicals": ["Electrical Rough", "HVAC Rough", "Plumbing Rough", "Low Voltage", "Gas Lines", "Insulation", "— Electrical Inspection Passed", "— Plumbing Inspection Passed", "— HVAC Inspection Passed"],
+};
+
+export default function PhaseChecklist({ phaseId, lotId, user, onChecklistStatus, phaseName }) {
   const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState("");
   const [adding, setAdding] = useState(false);
@@ -12,6 +18,19 @@ export default function PhaseChecklist({ phaseId, lotId, user, onChecklistStatus
   const loadItems = async () => {
     const { data } = await supabase.from("phase_checklist").select("*").eq("phase_id", phaseId).order("created_at");
     if (data) {
+      // If no items and phase has presets, auto-populate
+      if (data.length === 0 && phaseName && PHASE_PRESETS[phaseName]) {
+        const presets = PHASE_PRESETS[phaseName];
+        for (const item of presets) {
+          await supabase.from("phase_checklist").insert({ phase_id: phaseId, lot_id: lotId, item });
+        }
+        const { data: fresh } = await supabase.from("phase_checklist").select("*").eq("phase_id", phaseId).order("created_at");
+        if (fresh) {
+          setItems(fresh);
+          onChecklistStatus({ total: fresh.length, done: fresh.filter(i => i.completed).length, allDone: false });
+        }
+        return;
+      }
       setItems(data);
       const total = data.length;
       const done = data.filter(i => i.completed).length;

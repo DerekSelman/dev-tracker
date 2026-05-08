@@ -81,6 +81,19 @@ export default function PhaseChecklist({ phaseId, lotId, user, onChecklistStatus
         <input value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()} placeholder="Add checklist item..." style={{ ...fieldStyle, fontSize: 13, padding: "6px 10px", flex: 1 }} />
         <button onClick={addItem} disabled={adding || !newItem.trim()} style={{ background: newItem.trim() ? "#000" : "#f1f5f9", color: newItem.trim() ? G : "#cbd5e1", border: `1.5px solid ${newItem.trim() ? G : "#e2e8f0"}`, borderRadius: 8, padding: "6px 12px", cursor: newItem.trim() ? "pointer" : "default", fontSize: 13, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s" }}>Add</button>
       </div>
+      {phaseName && PHASE_PRESETS[phaseName] && (
+        <button onClick={async () => {
+          const presets = PHASE_PRESETS[phaseName];
+          const existing = items.map(i => i.item);
+          const toAdd = presets.filter(p => !existing.includes(p));
+          for (const item of toAdd) {
+            await supabase.from("phase_checklist").insert({ phase_id: phaseId, lot_id: lotId, item });
+          }
+          loadItems();
+        }} style={{ marginTop: 8, background: "transparent", border: "1px solid #e2e8f0", borderRadius: 8, color: "#64748b", padding: "5px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+          + Load Standard {phaseName} Items
+        </button>
+      )}
     </div>
   );
 }

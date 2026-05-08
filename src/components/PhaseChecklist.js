@@ -22,7 +22,7 @@ export default function PhaseChecklist({ phaseId, lotId, user, onChecklistStatus
       if (data.length === 0 && phaseName && PHASE_PRESETS[phaseName]) {
         const presets = PHASE_PRESETS[phaseName];
         for (const item of presets) {
-          await supabase.from("phase_checklist").insert({ phase_id: phaseId, lot_id: lotId, item });
+          await supabase.from("phase_checklist").insert({ phase_id: phaseId, lot_id: lotId, item, is_preset: true });
         }
         const { data: fresh } = await supabase.from("phase_checklist").select("*").eq("phase_id", phaseId).order("created_at");
         if (fresh) {
@@ -87,7 +87,7 @@ export default function PhaseChecklist({ phaseId, lotId, user, onChecklistStatus
           const existing = items.map(i => i.item);
           const toAdd = presets.filter(p => !existing.includes(p));
           for (const item of toAdd) {
-            await supabase.from("phase_checklist").insert({ phase_id: phaseId, lot_id: lotId, item });
+            await supabase.from("phase_checklist").insert({ phase_id: phaseId, lot_id: lotId, item, is_preset: true });
           }
           loadItems();
         }} style={{ marginTop: 8, background: "transparent", border: "1px solid #e2e8f0", borderRadius: 8, color: "#64748b", padding: "5px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>

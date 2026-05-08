@@ -42,7 +42,9 @@ export default function InterestTab({ lotId }) {
   const getLastPaymentDate = (loanId) => {
     const loanPayments = payments[loanId] || [];
     if (!loanPayments.length) return null;
-    return loanPayments[0].payment_date; // already sorted descending
+    // Sort by payment_date descending and take most recent
+    const sorted = [...loanPayments].sort((a, b) => b.payment_date.localeCompare(a.payment_date));
+    return sorted[0].payment_date;
   };
 
   // Calculate interest from startDate to endDate for a draw

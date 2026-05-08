@@ -263,7 +263,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
               <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>End Date</div><input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={dateInputStyle} /></div>
             </div>
             <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", marginBottom: 10 }} />
-            <PhaseChecklist phaseId={phase.id} lotId={lotId} user={user} onChecklistStatus={setChecklistStatus} />
+            <PhaseChecklist phaseId={phase.id} lotId={lotId} user={user} onChecklistStatus={setChecklistStatus} phaseName={phase.phase_name} />
             <div style={{ display: "flex", gap: 8, marginTop: 12, marginBottom: photos.length > 0 ? 10 : 0 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, background: "#000", border: `1.5px solid ${G}`, borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 13, color: G, flex: 1, justifyContent: "center", fontWeight: 600 }}>
                 <Icons.Camera />{uploading ? "Uploading..." : "Take Photo"}
@@ -315,7 +315,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
       {expanded && (
         <div style={{ background: "#f8fafc", border: `1.5px solid ${sc.border}`, borderTop: "none", borderRadius: "0 0 10px 10px", padding: "12px 14px" }}>
           <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes for this phase..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", marginBottom: 12 }} />
-          <PhaseChecklist phaseId={phase.id} lotId={lotId} user={user} onChecklistStatus={setChecklistStatus} />
+          <PhaseChecklist phaseId={phase.id} lotId={lotId} user={user} onChecklistStatus={setChecklistStatus} phaseName={phase.phase_name} />
           {photos.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 6, marginTop: 12 }}>
               {photos.map(photo => (
@@ -583,6 +583,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
   // Tabs based on role
   const allTabs = [
     { id: "phases", label: "Phases", roles: ["owner", "manager", "contractor"] },
+    { id: "timeline", label: "Timeline", roles: ["owner", "manager"] },
     { id: "punch", label: "Punch List", roles: ["owner", "manager", "contractor"] },
     { id: "docs", label: "Documents", roles: ["owner", "manager", "contractor"] },
     { id: "interest", label: "Interest", roles: ["owner", "manager"] },
@@ -647,10 +648,10 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
           <>
             {!isMobile && (
               <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 108px 108px 108px 108px 160px", gap: 8, padding: "4px 14px", marginBottom: 6 }}>
-                <div /><div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>Phase</div>
-                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>Start Date</div>
-                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>End Date</div>
-                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>Status / Actions</div>
+                <div /><div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Phase</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Start Date</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>End Date</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Status / Actions</div>
               </div>
             )}
             {phases.map(phase => <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} user={user} isOwner={isOwner} />)}
@@ -661,6 +662,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
             )}
           </>
         )}
+        {activeTab === "timeline" && <LotTimeline lot={lot} phases={phases} />}
         {activeTab === "punch" && <PunchListTab lotId={lot.id} user={user} />}
         {activeTab === "docs" && <DocumentsTab lotId={lot.id} user={user} />}
         {activeTab === "team" && <TeamTab lotId={lot.id} user={user} isOwner={isOwner} />}
@@ -980,12 +982,129 @@ function ActionItemsDashboard({ lots, user }) {
 
 
 
+
+// Lot Timeline / Gantt Chart
+function LotTimeline({ lot, phases }) {
+  const phasesWithDates = phases.filter(p => p.projected_start || p.projected_end);
+  
+  if (phasesWithDates.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>📅</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "#1e293b", marginBottom: 6 }}>No dates entered yet</div>
+        <div style={{ fontSize: 13 }}>Add Start and End dates to your phases to see the timeline.</div>
+      </div>
+    );
+  }
+
+  // Find date range
+  const allDates = phasesWithDates.flatMap(p => [p.projected_start, p.projected_end].filter(Boolean));
+  const minDate = new Date(Math.min(...allDates.map(d => new Date(d + "T00:00:00"))));
+  const maxDate = new Date(Math.max(...allDates.map(d => new Date(d + "T00:00:00"))));
+  const totalDays = Math.max(1, Math.round((maxDate - minDate) / 86400000)) + 7;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayOffset = Math.round((today - minDate) / 86400000);
+
+  const getLeft = (dateStr) => {
+    if (!dateStr) return 0;
+    const d = new Date(dateStr + "T00:00:00");
+    return Math.max(0, Math.round((d - minDate) / 86400000) / totalDays * 100);
+  };
+
+  const getWidth = (startStr, endStr) => {
+    if (!startStr || !endStr) return 2;
+    const start = new Date(startStr + "T00:00:00");
+    const end = new Date(endStr + "T00:00:00");
+    return Math.max(1, Math.round((end - start) / 86400000) / totalDays * 100);
+  };
+
+  const getBarColor = (phase) => {
+    if (phase.status === "complete") return G2;
+    if (phase.status === "in_progress") return "#f59e0b";
+    const today = new Date().toISOString().split("T")[0];
+    if (phase.projected_end && phase.projected_end < today) return "#ef4444";
+    return "#3b82f6";
+  };
+
+  const fmtDate = (d) => {
+    if (!d) return "";
+    return new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const projectedEnd = phases.filter(p => p.projected_end).map(p => p.projected_end).sort().pop();
+
+  return (
+    <div>
+      {projectedEnd && (
+        <div style={{ ...cardStyle, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Projected Completion</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", fontFamily: "'DM Serif Display', serif" }}>{fmtDate(projectedEnd)}</div>
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            {[
+              { color: G2, label: "Complete" },
+              { color: "#f59e0b", label: "In Progress" },
+              { color: "#3b82f6", label: "Upcoming" },
+              { color: "#ef4444", label: "Overdue" },
+            ].map(l => (
+              <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: l.color }} />
+                {l.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ ...cardStyle, overflowX: "auto" }}>
+        <div style={{ minWidth: 600 }}>
+          {phasesWithDates.map((phase, i) => (
+            <div key={phase.id} style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 6 }}>
+              <div style={{ width: 160, flexShrink: 0, fontSize: 11, color: phase.status === "complete" ? "#94a3b8" : "#1e293b", fontWeight: 500, paddingRight: 8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {phase.phase_name}
+              </div>
+              <div style={{ flex: 1, position: "relative", height: 28, background: "#f1f5f9", borderRadius: 4 }}>
+                {/* Today line */}
+                {todayOffset >= 0 && todayOffset <= totalDays && (
+                  <div style={{ position: "absolute", left: `${todayOffset / totalDays * 100}%`, top: 0, bottom: 0, width: 2, background: "#ef4444", zIndex: 2 }} />
+                )}
+                {/* Phase bar */}
+                {(phase.projected_start || phase.projected_end) && (
+                  <div style={{
+                    position: "absolute",
+                    left: `${getLeft(phase.projected_start || phase.projected_end)}%`,
+                    width: `${getWidth(phase.projected_start, phase.projected_end) || 2}%`,
+                    top: 4,
+                    height: 20,
+                    background: getBarColor(phase),
+                    borderRadius: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    paddingLeft: 6,
+                    minWidth: 4,
+                  }} title={`${phase.phase_name}: ${fmtDate(phase.projected_start)} - ${fmtDate(phase.projected_end)}`}>
+                    <span style={{ fontSize: 9, color: "#fff", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden" }}>
+                      {fmtDate(phase.projected_start)}{phase.projected_end ? ` - ${fmtDate(phase.projected_end)}` : ""}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Calendar View
-function CalendarView({ onBack, isMobile }) {
+function CalendarView({ onBack, isMobile, userRole }) {
   const [lots, setLots] = useState([]);
   const [phases, setPhases] = useState({});
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewStart, setViewStart] = useState(new Date());
 
   useEffect(() => { 
     supabase.from("lots").select("*").then(({ data }) => {
@@ -1054,9 +1173,9 @@ function CalendarView({ onBack, isMobile }) {
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={onBack} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Back /> Dashboard</button>
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
-            <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} style={{ background: "transparent", border: "1px solid #333", color: "#94a3b8", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 16 }}>‹</button>
+            <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} style={{ background: "#1e293b", border: `2px solid ${G}`, color: G, borderRadius: 10, padding: "8px 20px", cursor: "pointer", fontSize: 20, fontWeight: 700 }}>‹</button>
             <div style={{ fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#fff", minWidth: 200, textAlign: "center" }}>{monthName}</div>
-            <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} style={{ background: "transparent", border: "1px solid #333", color: "#94a3b8", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 16 }}>›</button>
+            <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} style={{ background: "#1e293b", border: `2px solid ${G}`, color: G, borderRadius: 10, padding: "8px 20px", cursor: "pointer", fontSize: 20, fontWeight: 700 }}>›</button>
           </div>
           <button onClick={() => setCurrentMonth(new Date())} style={{ background: "transparent", border: `1px solid ${G}`, color: G, borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}>Today</button>
         </div>
@@ -1305,7 +1424,6 @@ function GlobalTeam({ onBack }) {
     { value: "micah", label: "Micah Figley", desc: "Phases, Docs, Punch List, Activity, Chat" },
     { value: "morgan", label: "Morgan Figley", desc: "Phases, Docs, Punch List, Activity, Chat" },
     { value: "chris", label: "Chris Ropchak", desc: "Phases, Docs, Punch List, Activity, Chat" },
-    { value: "contractor", label: "Contractor", desc: "Phases, Docs, Punch List, Activity, Chat" },
   ];
 
   const ROLE_COLORS = {
@@ -1420,13 +1538,14 @@ function GlobalTeam({ onBack }) {
 }
 
 // Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, onShowCalendar, isOwner, userLotIds, theme, toggleTheme }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, onShowCalendar, onToggleNotifications, onMarkChatRead, notifications, unreadChat, isOwner, userLotIds, theme, toggleTheme }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
   const [lotInterest, setLotInterest] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [lotsLoaded, setLotsLoaded] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const isDark = theme === "dark";
   const bg = isDark ? "#0a0f1a" : "#f8fafc";
   const cardBg = isDark ? "#0f172a" : "#fff";
@@ -1564,13 +1683,62 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
             <img src="/logo192.png" alt="Dev Tracker" style={{ width: isMobile ? 32 : 40, height: isMobile ? 32 : 40, borderRadius: 8, objectFit: "cover" }} />
             <div style={{ fontSize: isMobile ? 18 : 22, fontFamily: "'DM Serif Display', serif", color: "#fff", fontWeight: 400, lineHeight: 1.2 }}>Dev Tracker</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {!isMobile && <span style={{ fontSize: 12, color: "#475569" }}>{user.email}</span>}
-            <button onClick={onShowChat} style={{ background: "transparent", border: `1px solid ${G}`, color: G, borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>💬 {!isMobile && "Chat"}</button>
+            
+            {/* Bell notification icon */}
+            <div style={{ position: "relative" }}>
+              <button onClick={onToggleNotifications} style={{ background: "transparent", border: "1px solid #333", color: notifications.length > 0 ? G : "#94a3b8", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center" }}>
+                🔔
+              </button>
+              {notifications.length > 0 && (
+                <div style={{ position: "absolute", top: -6, right: -6, background: "#ef4444", color: "#fff", borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>
+                  {notifications.length > 9 ? "9+" : notifications.length}
+                </div>
+              )}
+            </div>
+
+            {/* Chat with unread badge */}
+            <div style={{ position: "relative" }}>
+              <button onClick={() => { onShowChat(); onMarkChatRead(); }} style={{ background: "transparent", border: `1px solid ${unreadChat > 0 ? G : "#333"}`, color: unreadChat > 0 ? G : "#94a3b8", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+                💬 {!isMobile && "Chat"}
+              </button>
+              {unreadChat > 0 && (
+                <div style={{ position: "absolute", top: -6, right: -6, background: "#ef4444", color: "#fff", borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>
+                  {unreadChat > 9 ? "9+" : unreadChat}
+                </div>
+              )}
+            </div>
+
             <button onClick={onSignOut} style={{ background: "transparent", border: "1px solid #333", color: "#94a3b8", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Sign Out</button>
           </div>
         </div>
       </div>
+
+      {/* Notification dropdown */}
+      {onToggleNotifications && showNotifications && (
+        <div style={{ position: "fixed", top: 60, right: 20, width: 320, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 14, boxShadow: "0 8px 30px rgba(0,0,0,0.15)", zIndex: 200, overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", background: "#000", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: G }}>Notifications</div>
+            <button onClick={() => { markNotificationsRead(); }} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>Mark all read</button>
+          </div>
+          {notifications.length === 0 ? (
+            <div style={{ padding: "24px 16px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No new notifications</div>
+          ) : (
+            <div style={{ maxHeight: 320, overflowY: "auto" }}>
+              {notifications.map(n => (
+                <div key={n.id} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: G, marginTop: 5, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.4 }}>{n.message}</div>
+                    <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{new Date(n.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} at {new Date(n.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px" : "24px 32px" }}>
         {isOwner && (
@@ -1698,6 +1866,9 @@ export default function App() {
   const [showTeam, setShowTeam] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadChat, setUnreadChat] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1720,6 +1891,17 @@ export default function App() {
     supabase.from("user_preferences").select("theme").eq("id", user.id).single().then(({ data }) => {
       if (data?.theme) setTheme(data.theme);
     });
+    // Load notifications
+    const loadNotifs = async () => {
+      const { data } = await supabase.from("notifications").select("*").eq("user_email", user.email).eq("read", false).order("created_at", { ascending: false }).limit(20);
+      if (data) setNotifications(data);
+      // Load unread chat
+      const { data: msgs } = await supabase.from("team_messages").select("id, read_by").order("created_at", { ascending: false }).limit(50);
+      if (msgs) setUnreadChat(msgs.filter(m => !m.read_by?.includes(user.email)).length);
+    };
+    loadNotifs();
+    const interval = setInterval(loadNotifs, 15000);
+    return () => clearInterval(interval);
     if (user.email === OWNER_EMAIL) { setUserRole("owner"); return; }
     supabase.from("global_team").select("role").eq("email", user.email).single().then(({ data }) => {
       if (data) {
@@ -1732,6 +1914,22 @@ export default function App() {
 
   const isOwner = userRole === "owner";
   const signOut = () => supabase.auth.signOut();
+
+  const markNotificationsRead = async () => {
+    await supabase.from("notifications").update({ read: true }).eq("user_email", user?.email).eq("read", false);
+    setNotifications([]);
+    setShowNotifications(false);
+  };
+
+  const markChatRead = async () => {
+    const { data: msgs } = await supabase.from("team_messages").select("id, read_by").order("created_at", { ascending: false }).limit(50);
+    if (msgs) {
+      for (const msg of msgs.filter(m => !m.read_by?.includes(user?.email))) {
+        await supabase.from("team_messages").update({ read_by: [...(msg.read_by || []), user?.email] }).eq("id", msg.id);
+      }
+    }
+    setUnreadChat(0);
+  };
   const toggleTheme = async () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
@@ -1768,24 +1966,30 @@ export default function App() {
         textarea { font-family: 'DM Sans', sans-serif; }
       `}</style>
       {/* Mobile bottom nav */}
-      {isMobile && user && !showChat && !showTeam && !showPipeline && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#000", borderTop: `2px solid ${G}`, display: "flex", zIndex: 100, fontFamily: "'DM Sans', sans-serif" }}>
+      {isMobile && user && !showChat && !showTeam && !showPipeline && !showCalendar && (
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#000", borderTop: `2px solid ${G}`, display: "flex", zIndex: 100, fontFamily: "'DM Sans', sans-serif", paddingBottom: "env(safe-area-inset-bottom)" }}>
           {[
-            { label: "Dashboard", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); } },
-            { label: "Chat", icon: "💬", action: () => setShowChat(true) },
-            { label: "Action Items", icon: "⚡", action: () => { setSelectedLot(null); setShowPipeline(false); } },
+            { label: "Home", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); setShowCalendar(false); } },
+            { label: "Chat", icon: "💬", action: () => { setShowChat(true); markChatRead(); }, badge: unreadChat },
+            { label: "Actions", icon: "⚡", action: () => { setSelectedLot(null); setShowPipeline(false); } },
             { label: "Calendar", icon: "📅", action: () => setShowCalendar(true) },
+            { label: "Alerts", icon: "🔔", action: () => setShowNotifications(p => !p), badge: notifications.length },
           ].map(item => (
-            <button key={item.label} onClick={item.action} style={{ flex: 1, background: "transparent", border: "none", color: "#94a3b8", padding: "10px 0 8px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+            <button key={item.label} onClick={item.action} style={{ flex: 1, background: "transparent", border: "none", color: "#94a3b8", padding: "10px 0 8px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}>
               <span style={{ fontSize: 20 }}>{item.icon}</span>
-              <span style={{ fontSize: 10, color: "#64748b" }}>{item.label}</span>
+              <span style={{ fontSize: 9, color: "#64748b" }}>{item.label}</span>
+              {item.badge > 0 && (
+                <div style={{ position: "absolute", top: 6, right: "50%", marginRight: -18, background: "#ef4444", color: "#fff", borderRadius: "50%", width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700 }}>
+                  {item.badge > 9 ? "9+" : item.badge}
+                </div>
+              )}
             </button>
           ))}
         </div>
       )}
 
       {showCalendar ? (
-        <CalendarView onBack={() => setShowCalendar(false)} isMobile={isMobile} />
+        <CalendarView onBack={() => setShowCalendar(false)} isMobile={isMobile} userRole={userRole} />
       ) : showChat ? (
         <TeamChat user={user} onBack={() => setShowChat(false)} userRole={userRole} />
       ) : showTeam ? (
@@ -1825,6 +2029,10 @@ export default function App() {
           onShowTeam={() => setShowTeam(true)}
           onShowChat={() => setShowChat(true)}
           onShowCalendar={() => setShowCalendar(true)}
+          onToggleNotifications={() => setShowNotifications(p => !p)}
+          onMarkChatRead={markChatRead}
+          notifications={notifications}
+          unreadChat={unreadChat}
           isOwner={isOwner}
           userLotIds={userLotIds}
           theme={theme}

@@ -586,6 +586,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
     { id: "timeline", label: "Timeline", roles: ["owner", "manager"] },
     { id: "punch", label: "Punch List", roles: ["owner", "manager", "contractor"] },
     { id: "docs", label: "Documents", roles: ["owner", "manager", "contractor"] },
+    { id: "warranties", label: "Warranties", roles: ["owner", "manager"] },
     { id: "interest", label: "Interest", roles: ["owner", "manager"] },
     { id: "investor", label: "Investor", roles: ["owner", "manager"] },
     { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor"] },
@@ -654,6 +655,28 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
                 <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Status / Actions</div>
               </div>
             )}
+            {isOwner && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <button onClick={async () => {
+                  if (!window.confirm("Mark ALL phases as complete?")) return;
+                  for (const phase of phases) {
+                    await supabase.from("phases").update({ status: "complete" }).eq("id", phase.id);
+                  }
+                  loadPhases();
+                }} style={{ background: "#000", border: `1.5px solid ${G}`, color: G, borderRadius: 8, padding: "7px 16px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+                  ✓ Mark All Complete
+                </button>
+                <button onClick={async () => {
+                  if (!window.confirm("Reset ALL phases to Not Started?")) return;
+                  for (const phase of phases) {
+                    await supabase.from("phases").update({ status: "not_started" }).eq("id", phase.id);
+                  }
+                  loadPhases();
+                }} style={{ background: "#fff", border: "1.5px solid #e2e8f0", color: "#64748b", borderRadius: 8, padding: "7px 16px", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
+                  Reset All
+                </button>
+              </div>
+            )}
             {phases.map(phase => <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} user={user} isOwner={isOwner} />)}
             {isOwner && isMobile && (
               <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ width: "100%", marginTop: 20, background: "#fff", border: "1.5px solid #fecaca", color: "#ef4444", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
@@ -663,9 +686,10 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
           </>
         )}
         {activeTab === "timeline" && <LotTimeline lot={lot} phases={phases} />}
-        {activeTab === "punch" && <PunchListTab lotId={lot.id} user={user} />}
+        {activeTab === "punch" && <PunchListWithSignoff lotId={lot.id} lot={lot} user={user} isOwner={isOwner} />}
         {activeTab === "docs" && <DocumentsTab lotId={lot.id} user={user} />}
         {activeTab === "team" && <TeamTab lotId={lot.id} user={user} isOwner={isOwner} />}
+        {activeTab === "warranties" && <WarrantiesTab lotId={lot.id} lot={lot} />}
         {activeTab === "interest" && <InterestTab lotId={lot.id} />}
         {activeTab === "investor" && <InvestorTab lotId={lot.id} user={user} isOwner={isOwner} />}
         {activeTab === "activity" && <ActivityLog lotId={lot.id} />}
@@ -1410,6 +1434,446 @@ function TeamChat({ user, onBack, userRole }) {
   );
 }
 
+
+// ============================================================
+// WARRANTY & PUNCH LIST SIGN PAGES (Public - no login needed)
+// ============================================================
+
+function WarrantySignPage({ token }) {
+  const [warranty, setWarranty] = useState(null);
+  const [items, setItems] = useState([]);
+  const [sig, setSig] = useState(null);
+  const [name, setName] = useState("");
+  const [signed, setSigned] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { loadData(); }, [token]);
+
+  const loadData = async () => {
+    const { data: sigData } = await supabase.from("warranty_signatures").select("*").eq("token", token).single();
+    if (!sigData) { setLoading(false); return; }
+    setSig(sigData);
+    if (sigData.homeowner_name) setSigned(true);
+    const { data: w } = await supabase.from("warranties").select("*").eq("id", sigData.warranty_id).single();
+    if (w) setWarranty(w);
+    const { data: i } = await supabase.from("warranty_items").select("*").eq("warranty_id", sigData.warranty_id).order("created_at");
+    if (i) setItems(sigData.signature_type === "completion" ? i.filter(x => x.completed) : i);
+    setLoading(false);
+  };
+
+  const sign = async () => {
+    if (!name.trim()) return;
+    await supabase.from("warranty_signatures").update({ homeowner_name: name.trim(), signed_at: new Date().toISOString() }).eq("token", token);
+    setSigned(true);
+  };
+
+  if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", color: "#64748b" }}>Loading...</div>;
+  if (!warranty) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", color: "#ef4444" }}>Invalid or expired link.</div>;
+
+  const isCompletion = sig?.signature_type === "completion";
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif", padding: 20 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap'); * { box-sizing: border-box; } body { margin: 0; }`}</style>
+      <div style={{ maxWidth: 580, margin: "0 auto" }}>
+        <div style={{ background: "#000", borderRadius: "14px 14px 0 0", padding: "20px 24px", borderBottom: "3px solid #4ade80" }}>
+          <div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Figley Contracting LLC</div>
+          <div style={{ fontSize: 20, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>{isCompletion ? "Warranty Completion Sign-off" : "Warranty Work Order"}</div>
+        </div>
+        <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderTop: "none", borderRadius: "0 0 14px 14px", padding: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div><div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Property</div><div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{warranty.property_address}</div></div>
+            {warranty.homeowner_name && <div><div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Homeowner</div><div style={{ fontSize: 14, color: "#1e293b" }}>{warranty.homeowner_name}</div></div>}
+            {warranty.expiration_date && <div><div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Warranty Expires</div><div style={{ fontSize: 14, color: "#1e293b" }}>{new Date(warranty.expiration_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div></div>}
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase", marginBottom: 10 }}>{isCompletion ? "Work Completed" : "Work to be Performed"}</div>
+            {items.map(item => (
+              <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ width: 20, height: 20, borderRadius: 4, background: isCompletion ? "#16a34a" : "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                  {isCompletion && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+                <div style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.5 }}>{item.description}{item.assigned_to ? <span style={{ color: "#64748b" }}> — {item.assigned_to}</span> : ""}</div>
+              </div>
+            ))}
+          </div>
+          {signed ? (
+            <div style={{ background: "#f0fdf4", border: "1.5px solid #bbf7d0", borderRadius: 12, padding: 20, textAlign: "center" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#16a34a" }}>Signed by {sig?.homeowner_name}</div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{new Date(sig?.signed_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 12, color: "#475569", marginBottom: 14, lineHeight: 1.6, background: "#f8fafc", padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                {isCompletion ? "By signing below, I confirm that all warranty work listed above has been completed to my satisfaction." : "By signing below, I confirm that the warranty work listed above is accurate and I authorize Figley Contracting LLC to proceed."}
+              </div>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="Type your full name to sign" style={{ width: "100%", border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "12px 16px", fontSize: 14, fontFamily: "'DM Sans', sans-serif", marginBottom: 12, boxSizing: "border-box", outline: "none" }} />
+              <button onClick={sign} disabled={!name.trim()} style={{ width: "100%", background: name.trim() ? "#000" : "#f1f5f9", color: name.trim() ? "#4ade80" : "#cbd5e1", border: `2px solid ${name.trim() ? "#4ade80" : "#e2e8f0"}`, borderRadius: 10, padding: 14, fontSize: 15, fontWeight: 700, cursor: name.trim() ? "pointer" : "default", fontFamily: "'DM Sans', sans-serif" }}>
+                ✍️ Sign & Submit
+              </button>
+            </div>
+          )}
+          <div style={{ marginTop: 20, textAlign: "center", fontSize: 10, color: "#cbd5e1" }}>Figley Contracting LLC · Powered by Dev Tracker</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PunchSignPage({ token }) {
+  const [lot, setLot] = useState(null);
+  const [items, setItems] = useState([]);
+  const [sig, setSig] = useState(null);
+  const [name, setName] = useState("");
+  const [signed, setSigned] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { loadData(); }, [token]);
+
+  const loadData = async () => {
+    const { data: sigData } = await supabase.from("punch_signatures").select("*").eq("token", token).single();
+    if (!sigData) { setLoading(false); return; }
+    setSig(sigData);
+    if (sigData.homeowner_name) setSigned(true);
+    const { data: l } = await supabase.from("lots").select("*").eq("id", sigData.lot_id).single();
+    if (l) setLot(l);
+    const { data: i } = await supabase.from("punch_list").select("*").eq("lot_id", sigData.lot_id).order("created_at");
+    if (i) setItems(sigData.signature_type === "completion" ? i.filter(x => x.completed) : i);
+    setLoading(false);
+  };
+
+  const sign = async () => {
+    if (!name.trim()) return;
+    await supabase.from("punch_signatures").update({ homeowner_name: name.trim(), signed_at: new Date().toISOString() }).eq("token", token);
+    setSigned(true);
+  };
+
+  if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", color: "#64748b" }}>Loading...</div>;
+  if (!lot) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", color: "#ef4444" }}>Invalid or expired link.</div>;
+
+  const isCompletion = sig?.signature_type === "completion";
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif", padding: 20 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap'); * { box-sizing: border-box; } body { margin: 0; }`}</style>
+      <div style={{ maxWidth: 580, margin: "0 auto" }}>
+        <div style={{ background: "#000", borderRadius: "14px 14px 0 0", padding: "20px 24px", borderBottom: "3px solid #4ade80" }}>
+          <div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Figley Contracting LLC</div>
+          <div style={{ fontSize: 20, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>{isCompletion ? "Punch List Completion Sign-off" : "Punch List Walkthrough Agreement"}</div>
+        </div>
+        <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderTop: "none", borderRadius: "0 0 14px 14px", padding: 24 }}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Property</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>{lot.address}</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>Walkthrough Date: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase", marginBottom: 10 }}>{isCompletion ? "Completed Items" : "Punch List Items"}</div>
+            {items.length === 0 ? <div style={{ fontSize: 13, color: "#94a3b8" }}>No items.</div> : items.map(item => (
+              <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ width: 20, height: 20, borderRadius: 4, background: isCompletion ? "#16a34a" : "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                  {isCompletion && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+                <div style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.5 }}>{item.item}</div>
+              </div>
+            ))}
+          </div>
+          {signed ? (
+            <div style={{ background: "#f0fdf4", border: "1.5px solid #bbf7d0", borderRadius: 12, padding: 20, textAlign: "center" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#16a34a" }}>Signed by {sig?.homeowner_name}</div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{new Date(sig?.signed_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 12, color: "#475569", marginBottom: 14, lineHeight: 1.6, background: "#f8fafc", padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                {isCompletion ? "By signing below, I confirm that all punch list items above have been completed to my satisfaction." : "By signing below, I confirm this is the complete and agreed upon punch list. No additional items will be added after this signature."}
+              </div>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="Type your full name to sign" style={{ width: "100%", border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "12px 16px", fontSize: 14, fontFamily: "'DM Sans', sans-serif", marginBottom: 12, boxSizing: "border-box", outline: "none" }} />
+              <button onClick={sign} disabled={!name.trim()} style={{ width: "100%", background: name.trim() ? "#000" : "#f1f5f9", color: name.trim() ? "#4ade80" : "#cbd5e1", border: `2px solid ${name.trim() ? "#4ade80" : "#e2e8f0"}`, borderRadius: 10, padding: 14, fontSize: 15, fontWeight: 700, cursor: name.trim() ? "pointer" : "default", fontFamily: "'DM Sans', sans-serif" }}>
+                ✍️ Sign & Submit
+              </button>
+            </div>
+          )}
+          <div style={{ marginTop: 20, textAlign: "center", fontSize: 10, color: "#cbd5e1" }}>Figley Contracting LLC · Powered by Dev Tracker</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Warranties Tab
+function WarrantiesTab({ lotId, lot }) {
+  const [warranties, setWarranties] = useState([]);
+  const [warrantyItems, setWarrantyItems] = useState({});
+  const [signatures, setSignatures] = useState({});
+  const [showForm, setShowForm] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+  const [newItem, setNewItem] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(null);
+  const [form, setForm] = useState({ property_address: lot?.address || "", homeowner_name: "", homeowner_email: "", homeowner_phone: "", expiration_date: "", priority: "normal", status: "Pending", notes: "" });
+
+  const PRIORITIES = { urgent: { color: "#ef4444", bg: "#fef2f2", label: "Urgent" }, normal: { color: "#f59e0b", bg: "#fffbeb", label: "Normal" }, low: { color: "#64748b", bg: "#f8fafc", label: "Low" } };
+  const TEAM = ["Micah Figley", "Chris Ropchak", "Morgan Figley"];
+
+  useEffect(() => { loadWarranties(); }, [lotId]);
+
+  const loadWarranties = async () => {
+    const { data: w } = await supabase.from("warranties").select("*").eq("lot_id", lotId).order("created_at", { ascending: false });
+    if (w) {
+      setWarranties(w);
+      for (const warranty of w) {
+        const { data: i } = await supabase.from("warranty_items").select("*").eq("warranty_id", warranty.id).order("created_at");
+        if (i) setWarrantyItems(p => ({ ...p, [warranty.id]: i }));
+        const { data: s } = await supabase.from("warranty_signatures").select("*").eq("warranty_id", warranty.id);
+        if (s) setSignatures(p => ({ ...p, [warranty.id]: s }));
+      }
+    }
+  };
+
+  const saveWarranty = async () => {
+    setSaving(true);
+    const { data } = await supabase.from("warranties").insert({ ...form, lot_id: lotId }).select().single();
+    if (data) { setExpandedId(data.id); loadWarranties(); }
+    setForm({ property_address: lot?.address || "", homeowner_name: "", homeowner_email: "", homeowner_phone: "", expiration_date: "", priority: "normal", status: "Pending", notes: "" });
+    setShowForm(false);
+    setSaving(false);
+  };
+
+  const addItem = async (warrantyId) => {
+    if (!newItem.trim()) return;
+    await supabase.from("warranty_items").insert({ warranty_id: warrantyId, description: newItem.trim() });
+    setNewItem("");
+    loadWarranties();
+  };
+
+  const toggleItem = async (item) => {
+    await supabase.from("warranty_items").update({ completed: !item.completed, completed_at: !item.completed ? new Date().toISOString() : null }).eq("id", item.id);
+    loadWarranties();
+  };
+
+  const updateItemAssignee = async (itemId, assignee) => {
+    await supabase.from("warranty_items").update({ assigned_to: assignee }).eq("id", itemId);
+    loadWarranties();
+  };
+
+  const deleteItem = async (id) => {
+    await supabase.from("warranty_items").delete().eq("id", id);
+    loadWarranties();
+  };
+
+  const updateWarranty = async (id, field, value) => {
+    await supabase.from("warranties").update({ [field]: value }).eq("id", id);
+    loadWarranties();
+  };
+
+  const deleteWarranty = async (id) => {
+    if (!window.confirm("Delete this warranty record?")) return;
+    await supabase.from("warranties").delete().eq("id", id);
+    loadWarranties();
+  };
+
+  const createSignatureLink = async (warrantyId, type) => {
+    const { data } = await supabase.from("warranty_signatures").insert({ warranty_id: warrantyId, signature_type: type }).select().single();
+    if (data) {
+      const url = `${window.location.origin}?warranty=${data.token}`;
+      navigator.clipboard.writeText(url);
+      setCopied(`${warrantyId}-${type}`);
+      setTimeout(() => setCopied(null), 3000);
+      loadWarranties();
+    }
+  };
+
+  const getSignature = (warrantyId, type) => (signatures[warrantyId] || []).find(s => s.signature_type === type);
+  const getLink = (token) => `${window.location.origin}?warranty=${token}`;
+
+  const pr = (priority) => PRIORITIES[priority] || PRIORITIES.normal;
+
+  return (
+    <div>
+      {/* Add warranty form */}
+      {showForm && (
+        <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>New Warranty Record</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Property Address</label><input value={form.property_address} onChange={e => setForm(p => ({ ...p, property_address: e.target.value }))} style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px" }} /></div>
+            <div><label style={labelStyle}>Homeowner Name</label><input value={form.homeowner_name} onChange={e => setForm(p => ({ ...p, homeowner_name: e.target.value }))} placeholder="Full name" style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px" }} /></div>
+            <div><label style={labelStyle}>Phone</label><input value={form.homeowner_phone} onChange={e => setForm(p => ({ ...p, homeowner_phone: e.target.value }))} placeholder="Phone number" style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px" }} /></div>
+            <div><label style={labelStyle}>Email</label><input value={form.homeowner_email} onChange={e => setForm(p => ({ ...p, homeowner_email: e.target.value }))} placeholder="Email" style={{ ...fieldStyle, fontSize: 13, padding: "8px 12px" }} /></div>
+            <div><label style={labelStyle}>Warranty Expiration</label><input type="date" value={form.expiration_date} onChange={e => setForm(p => ({ ...p, expiration_date: e.target.value }))} style={fieldStyle} /></div>
+            <div><label style={labelStyle}>Priority</label>
+              <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))} style={fieldStyle}>
+                <option value="urgent">Urgent</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          </div>
+          <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes..." rows={2} style={{ ...fieldStyle, resize: "vertical", marginBottom: 12 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={saveWarranty} disabled={saving} style={btnGreen}>{saving ? "Saving..." : "Save"}</button>
+            <button onClick={() => setShowForm(false)} style={btnOutline}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {warranties.length === 0 && !showForm ? (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🏠</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", marginBottom: 6 }}>No warranty records yet</div>
+          <div style={{ fontSize: 13, marginBottom: 16 }}>Add warranty items for this property.</div>
+        </div>
+      ) : warranties.map(warranty => {
+        const items = warrantyItems[warranty.id] || [];
+        const complete = items.filter(i => i.completed).length;
+        const workOrderSig = getSignature(warranty.id, "work_order");
+        const completionSig = getSignature(warranty.id, "completion");
+        const isExpanded = expandedId === warranty.id;
+        const p = pr(warranty.priority);
+        const daysUntilExp = warranty.expiration_date ? Math.round((new Date(warranty.expiration_date) - new Date()) / 86400000) : null;
+
+        return (
+          <div key={warranty.id} style={{ ...cardStyle, marginBottom: 14, borderColor: warranty.priority === "urgent" ? "#fecaca" : "#e2e8f0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+              <div onClick={() => setExpandedId(isExpanded ? null : warranty.id)} style={{ cursor: "pointer", flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: p.bg, color: p.color, border: `1px solid ${p.color}20` }}>{p.label}</span>
+                  <span style={{ fontSize: 10, color: "#64748b", fontWeight: 600 }}>{warranty.status}</span>
+                  {daysUntilExp !== null && daysUntilExp <= 30 && <span style={{ fontSize: 10, color: "#ef4444", fontWeight: 700 }}>⚠ Expires in {daysUntilExp}d</span>}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>{warranty.homeowner_name || "Unnamed Homeowner"}</div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>{warranty.homeowner_phone}{warranty.homeowner_email ? ` · ${warranty.homeowner_email}` : ""}</div>
+                {warranty.expiration_date && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Expires: {new Date(warranty.expiration_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>}
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <select value={warranty.status} onChange={e => updateWarranty(warranty.id, "status", e.target.value)} onClick={e => e.stopPropagation()} style={{ fontSize: 11, border: "1px solid #e2e8f0", borderRadius: 6, padding: "3px 6px", color: "#64748b", fontFamily: "'DM Sans', sans-serif", outline: "none" }}>
+                  {["Pending","Scheduled","In Progress","Complete"].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <button onClick={() => deleteWarranty(warranty.id)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer" }}><Icons.Trash /></button>
+              </div>
+            </div>
+
+            {/* Progress */}
+            {items.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ background: "#f1f5f9", borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 4 }}>
+                  <div style={{ width: `${items.length > 0 ? (complete/items.length)*100 : 0}%`, height: "100%", background: `linear-gradient(90deg, #000, #4ade80)`, borderRadius: 99 }} />
+                </div>
+                <div style={{ fontSize: 11, color: "#64748b" }}>{complete}/{items.length} items complete</div>
+              </div>
+            )}
+
+            {/* Signature status */}
+            <div style={{ display: "flex", gap: 8, marginBottom: isExpanded ? 12 : 0, flexWrap: "wrap" }}>
+              {workOrderSig?.homeowner_name ? (
+                <span style={{ fontSize: 11, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "3px 8px", borderRadius: 20, fontWeight: 600 }}>✓ Work Order Signed by {workOrderSig.homeowner_name}</span>
+              ) : (
+                <button onClick={() => createSignatureLink(warranty.id, "work_order")} style={{ fontSize: 11, background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", padding: "3px 10px", borderRadius: 20, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                  {copied === `${warranty.id}-work_order` ? "Link Copied!" : "📋 Send Work Order"}
+                </button>
+              )}
+              {completionSig?.homeowner_name ? (
+                <span style={{ fontSize: 11, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "3px 8px", borderRadius: 20, fontWeight: 600 }}>✓ Completion Signed by {completionSig.homeowner_name}</span>
+              ) : (
+                <button onClick={() => createSignatureLink(warranty.id, "completion")} style={{ fontSize: 11, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "3px 10px", borderRadius: 20, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                  {copied === `${warranty.id}-completion` ? "Link Copied!" : "✅ Send Completion Sign-off"}
+                </button>
+              )}
+            </div>
+
+            {isExpanded && (
+              <div>
+                {/* Items list */}
+                <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Warranty Items</div>
+                {items.map(item => (
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
+                    <button onClick={() => toggleItem(item)} style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${item.completed ? "#16a34a" : "#cbd5e1"}`, background: item.completed ? "#16a34a" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                      {item.completed && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                    </button>
+                    <div style={{ flex: 1, fontSize: 13, color: item.completed ? "#94a3b8" : "#1e293b", textDecoration: item.completed ? "line-through" : "none" }}>{item.description}</div>
+                    <select value={item.assigned_to || ""} onChange={e => updateItemAssignee(item.id, e.target.value)} style={{ fontSize: 11, border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 6px", color: "#64748b", fontFamily: "'DM Sans', sans-serif", outline: "none" }}>
+                      <option value="">Assign to...</option>
+                      {TEAM.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <button onClick={() => deleteItem(item.id)} style={{ background: "transparent", border: "none", color: "#e2e8f0", cursor: "pointer" }}><Icons.Trash /></button>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <input value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem(warranty.id)} placeholder="Add warranty item..." style={{ ...fieldStyle, fontSize: 13, padding: "7px 10px", flex: 1 }} />
+                  <button onClick={() => addItem(warranty.id)} disabled={!newItem.trim()} style={{ ...btnGreen, padding: "7px 14px", fontSize: 13, opacity: !newItem.trim() ? 0.5 : 1 }}>Add</button>
+                </div>
+                {warranty.notes && <div style={{ marginTop: 10, fontSize: 12, color: "#64748b", fontStyle: "italic" }}>{warranty.notes}</div>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {!showForm && (
+        <button onClick={() => setShowForm(true)} style={{ ...btnOutline, marginTop: 8 }}><Icons.Plus /> Add Warranty Record</button>
+      )}
+    </div>
+  );
+}
+
+
+// Punch List with Sign-off
+function PunchListWithSignoff({ lotId, lot, user, isOwner }) {
+  const [signatures, setSignatures] = useState([]);
+  const [copied, setCopied] = useState(null);
+
+  useEffect(() => { loadSigs(); }, [lotId]);
+
+  const loadSigs = async () => {
+    const { data } = await supabase.from("punch_signatures").select("*").eq("lot_id", lotId).order("created_at");
+    if (data) setSignatures(data);
+  };
+
+  const createLink = async (type) => {
+    const { data } = await supabase.from("punch_signatures").insert({ lot_id: lotId, signature_type: type }).select().single();
+    if (data) {
+      const url = `${window.location.origin}?punch=${data.token}`;
+      navigator.clipboard.writeText(url);
+      setCopied(type);
+      setTimeout(() => setCopied(null), 3000);
+      loadSigs();
+    }
+  };
+
+  const walkSig = signatures.find(s => s.signature_type === "walkthrough");
+  const compSig = signatures.find(s => s.signature_type === "completion");
+
+  return (
+    <div>
+      {isOwner && (
+        <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 10 }}>Homeowner Sign-off — Figley Contracting LLC</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {walkSig?.homeowner_name ? (
+              <span style={{ fontSize: 12, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>✓ Walkthrough signed by {walkSig.homeowner_name}</span>
+            ) : (
+              <button onClick={() => createLink("walkthrough")} style={{ fontSize: 12, background: "#fffbeb", border: "1.5px solid #fde68a", color: "#92400e", padding: "6px 14px", borderRadius: 20, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                {copied === "walkthrough" ? "✓ Link Copied!" : "📋 Send Walkthrough Sign-off"}
+              </button>
+            )}
+            {compSig?.homeowner_name ? (
+              <span style={{ fontSize: 12, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>✓ Completion signed by {compSig.homeowner_name}</span>
+            ) : (
+              <button onClick={() => createLink("completion")} style={{ fontSize: 12, background: "#f0fdf4", border: "1.5px solid #bbf7d0", color: "#166534", padding: "6px 14px", borderRadius: 20, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                {copied === "completion" ? "✓ Link Copied!" : "✅ Send Completion Sign-off"}
+              </button>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>Links are copied to clipboard — paste into a text or email to the homeowner.</div>
+        </div>
+      )}
+      <PunchListTab lotId={lotId} user={user} />
+    </div>
+  );
+}
+
 // Global Team Management
 function GlobalTeam({ onBack }) {
   const [members, setMembers] = useState([]);
@@ -1859,6 +2323,8 @@ export default function App() {
   const [selectedLot, setSelectedLot] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [investorToken, setInvestorToken] = useState(null);
+  const [warrantyToken, setWarrantyToken] = useState(null);
+  const [punchToken, setPunchToken] = useState(null);
   const [showPipeline, setShowPipeline] = useState(false);
   const [userLotIds, setUserLotIds] = useState([]);
   const [userRole, setUserRole] = useState("owner");
@@ -1874,6 +2340,10 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("investor");
     if (token) setInvestorToken(token);
+    const wToken = params.get("warranty");
+    if (wToken) setWarrantyToken(wToken);
+    const pToken = params.get("punch");
+    if (pToken) setPunchToken(pToken);
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -1942,6 +2412,8 @@ export default function App() {
     if (data) setSelectedLot(data);
   };
 
+  if (warrantyToken) return <WarrantySignPage token={warrantyToken} />;
+  if (punchToken) return <PunchSignPage token={punchToken} />;
   if (investorToken) return <InvestorView token={investorToken} />;
   if (!user) return <AuthScreen />;
 

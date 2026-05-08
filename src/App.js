@@ -924,6 +924,7 @@ function ActionItemsDashboard({ lots, user }) {
         .from("phase_checklist")
         .select("*, phases(phase_name, lot_id)")
         .eq("completed", false)
+        .eq("is_preset", false)
         .in("lot_id", lotIds);
 
       if (checklistItems) {

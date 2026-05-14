@@ -215,6 +215,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
 
   const getPhotoUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
   const hasChecklistWarning = !checklistStatus.allDone && phase.status === STATUS.IN_PROGRESS;
+
   // Smart date warnings
   const today = new Date().toISOString().split("T")[0];
   const endDate = phase.projected_end;
@@ -225,12 +226,16 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
   const endingSoon = endDate && daysUntilEnd !== null && daysUntilEnd >= 0 && daysUntilEnd <= 3 && phase.status === STATUS.IN_PROGRESS;
   const notStartedLate = startDate && startDate < today && phase.status === STATUS.NOT_STARTED;
 
+  // CHANGE 8: Phase start alert — flag if start date was 0-2 days ago and still not started
+  const daysSinceStart = startDate ? Math.round((new Date() - new Date(startDate + "T00:00:00")) / 86400000) : null;
+  const dueToStart = startDate && phase.status === STATUS.NOT_STARTED && daysSinceStart !== null && daysSinceStart >= 0 && daysSinceStart <= 2;
+
   const statusColors = {
     [STATUS.NOT_STARTED]: { bg: "#f8fafc", border: "#e2e8f0" },
     [STATUS.IN_PROGRESS]: { bg: "#fffbeb", border: "#fde68a" },
     [STATUS.COMPLETE]: { bg: G3, border: "#bbf7d0" },
   };
-  const sc = overdue ? { bg: "#fef2f2", border: "#fecaca" } 
+  const sc = overdue ? { bg: "#fef2f2", border: "#fecaca" }
     : notStartedLate ? { bg: "#fef2f2", border: "#fecaca" }
     : endingSoon ? { bg: "#fff7ed", border: "#fed7aa" }
     : startingSoon ? { bg: "#fffbeb", border: "#fde68a" }
@@ -247,6 +252,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
             <div style={{ fontSize: 14, color: overdue ? "#991b1b" : phase.status === STATUS.COMPLETE ? "#94a3b8" : "#1e293b", textDecoration: phase.status === STATUS.COMPLETE ? "line-through" : "none", marginBottom: 3, fontWeight: 500 }}>{phase.phase_name}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               <span style={{ fontSize: 11, color: overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot, fontWeight: 700 }}>{overdue ? `${diff}d overdue` : hasChecklistWarning ? `${checklistStatus.total - checklistStatus.done} open items` : cfg.label}</span>
+              {dueToStart && <span style={{ fontSize: 11, color: "#d97706", fontWeight: 700, background: "#fffbeb", padding: "1px 6px", borderRadius: 10 }}>⏰ Due to start</span>}
               {photos.length > 0 && <span style={{ fontSize: 11, color: G2, fontWeight: 600 }}>{photos.length} photo{photos.length > 1 ? "s" : ""}</span>}
               {checklistStatus.total > 0 && <span style={{ fontSize: 11, color: "#64748b" }}>{checklistStatus.done}/{checklistStatus.total} checklist</span>}
             </div>
@@ -291,25 +297,28 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
 
   return (
     <div style={{ marginBottom: 6 }}>
+      {/* CHANGE 6 FIX: aligned grid to match header — 36px | 1fr | 140px | 140px | 180px */}
       <div onClick={() => setExpanded(p => !p)} style={{ display: "grid", gridTemplateColumns: "36px 1fr 140px 140px 180px", gap: 8, alignItems: "center", padding: "10px 14px", borderRadius: expanded ? "10px 10px 0 0" : 10, background: sc.bg, border: `1.5px solid ${sc.border}`, cursor: "pointer" }}>
-        <button onClick={cycleStatus} style={{ width: 32, height: 32, borderRadius: "50%", border: `2px solid ${overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot}`, background: phase.status === STATUS.COMPLETE ? cfg.dot : "#fff", color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <button onClick={e => { e.stopPropagation(); cycleStatus(); }} style={{ width: 32, height: 32, borderRadius: "50%", border: `2px solid ${overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot}`, background: phase.status === STATUS.COMPLETE ? cfg.dot : "#fff", color: phase.status === STATUS.COMPLETE ? "#fff" : overdue ? "#ef4444" : hasChecklistWarning ? "#f59e0b" : cfg.dot, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {phase.status === STATUS.COMPLETE ? <Icons.Check /> : phase.status === STATUS.IN_PROGRESS ? (hasChecklistWarning ? "!" : "▶") : ""}
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span style={{ fontSize: 13, color: overdue ? "#991b1b" : phase.status === STATUS.COMPLETE ? "#94a3b8" : "#1e293b", textDecoration: phase.status === STATUS.COMPLETE ? "line-through" : "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500 }}>{phase.phase_name}</span>
           {overdue && <span style={{ display: "flex", alignItems: "center", gap: 3, background: "#fee2e2", color: "#991b1b", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, whiteSpace: "nowrap", flexShrink: 0 }}><Icons.Warn />{diff}d late</span>}
+          {dueToStart && <span style={{ background: "#fffbeb", color: "#d97706", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, flexShrink: 0 }}>⏰ Due to start</span>}
           {hasChecklistWarning && <span style={{ background: "#fffbeb", color: "#92400e", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, flexShrink: 0 }}>⚠ {checklistStatus.total - checklistStatus.done} open</span>}
           {photos.length > 0 && <span style={{ background: G3, color: G2, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, flexShrink: 0 }}>{photos.length} photo{photos.length > 1 ? "s" : ""}</span>}
         </div>
-        <input type="date" defaultValue={phase.projected_start || ""} onBlur={e => updateField("projected_start", e.target.value)} style={dateInputStyle} placeholder="Start" title="Start Date" />
-        <input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={dateInputStyle} placeholder="End" title="End Date" />
+        {/* These two inputs are now in columns 3 and 4, matching header exactly */}
+        <input type="date" defaultValue={phase.projected_start || ""} onBlur={e => updateField("projected_start", e.target.value)} onClick={e => e.stopPropagation()} style={dateInputStyle} placeholder="Start" title="Start Date" />
+        <input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} onClick={e => e.stopPropagation()} style={dateInputStyle} placeholder="End" title="End Date" />
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <button onClick={cycleStatus} style={{ padding: "3px 8px", borderRadius: 20, border: `1.5px solid ${overdue ? "#fecaca" : hasChecklistWarning ? "#fde68a" : sc.border}`, background: sc.bg, color: overdue ? "#ef4444" : hasChecklistWarning ? "#d97706" : "#64748b", fontSize: 10, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", whiteSpace: "nowrap" }}>{overdue ? "Overdue" : hasChecklistWarning ? "Check List!" : cfg.label}</button>
+          <button onClick={e => { e.stopPropagation(); cycleStatus(); }} style={{ padding: "3px 8px", borderRadius: 20, border: `1.5px solid ${overdue ? "#fecaca" : hasChecklistWarning ? "#fde68a" : sc.border}`, background: sc.bg, color: overdue ? "#ef4444" : hasChecklistWarning ? "#d97706" : "#64748b", fontSize: 10, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", whiteSpace: "nowrap" }}>{overdue ? "Overdue" : hasChecklistWarning ? "Check List!" : cfg.label}</button>
           <label title="Upload photo" style={{ background: "#000", border: `1.5px solid ${G}`, borderRadius: 7, color: G, width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Icons.Camera />
             <input type="file" accept="image/*" multiple onChange={uploadPhoto} style={{ display: "none" }} />
           </label>
-          <button onClick={() => setExpanded(p => !p)} style={{ background: (phase.notes || photos.length > 0 || checklistStatus.total > 0) ? G3 : "#fff", border: `1.5px solid ${(phase.notes || photos.length > 0 || checklistStatus.total > 0) ? G : "#e2e8f0"}`, borderRadius: 7, color: (phase.notes || photos.length > 0 || checklistStatus.total > 0) ? G2 : "#94a3b8", width: 28, height: 28, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✎</button>
+          <button onClick={e => { e.stopPropagation(); setExpanded(p => !p); }} style={{ background: (phase.notes || photos.length > 0 || checklistStatus.total > 0) ? G3 : "#fff", border: `1.5px solid ${(phase.notes || photos.length > 0 || checklistStatus.total > 0) ? G : "#e2e8f0"}`, borderRadius: 7, color: (phase.notes || photos.length > 0 || checklistStatus.total > 0) ? G2 : "#94a3b8", width: 28, height: 28, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✎</button>
         </div>
       </div>
       {expanded && (
@@ -580,7 +589,6 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
   const prog = getOverallProgress(phases);
   const overdueCnt = countOverdue(phases);
 
-  // Tabs based on role
   const allTabs = [
     { id: "phases", label: "Phases", roles: ["owner", "manager", "contractor"] },
     { id: "timeline", label: "Timeline", roles: ["owner", "manager"] },
@@ -599,17 +607,17 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
         <div style={{ maxWidth: 1150, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={onBack} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif", flexShrink: 0 }}><Icons.Back />{!isMobile && " Dashboard"}</button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter lot address..." style={{ background: "transparent", border: "none", color: "#fff", fontSize: isMobile ? 15 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} readOnly={!isOwner} />
+            <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter address..." style={{ background: "transparent", border: "none", color: "#fff", fontSize: isMobile ? 15 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} readOnly={!isOwner} />
           </div>
           {saving && <span style={{ fontSize: 12, color: "#64748b", flexShrink: 0 }}>Saving...</span>}
-          {isOwner && !isMobile && <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ background: "transparent", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Trash /> Delete</button>}
+          {isOwner && !isMobile && <button onClick={() => { if (window.confirm("Delete this address?")) onDelete(lot.id); }} style={{ background: "transparent", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Trash /> Delete</button>}
         </div>
       </div>
 
       <div style={{ maxWidth: 1150, margin: "0 auto", padding: isMobile ? "16px" : "20px 24px" }}>
         <div style={{ ...cardStyle, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 14, color: "#1e293b", fontWeight: 600 }}>{lot.address || "This lot"}</span>
+            <span style={{ fontSize: 14, color: "#1e293b", fontWeight: 600 }}>{lot.address || "This address"}</span>
             <span style={{ fontSize: 18, fontWeight: 700, color: G2 }}>{prog.pct}%</span>
           </div>
           <div style={{ background: "#f1f5f9", borderRadius: 99, height: 10, overflow: "hidden", marginBottom: 8 }}>
@@ -635,6 +643,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
                 <option value="spec">Spec Home</option>
                 <option value="customer">Customer Home</option>
                 <option value="vacant">Vacant Lot</option>
+                <option value="micah">Micah's Project</option>
               </select>
             </div>
             <div><label style={labelStyle}>Notes</label><input defaultValue={local.notes} onBlur={e => saveField("notes", e.target.value)} placeholder="General notes..." style={fieldStyle} /></div>
@@ -648,8 +657,10 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
         {activeTab === "phases" && (
           <>
             {!isMobile && (
-              <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 108px 108px 108px 108px 160px", gap: 8, padding: "4px 14px", marginBottom: 6 }}>
-                <div /><div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Phase</div>
+              // CHANGE 6 FIX: Column header grid matches PhaseRow grid exactly: 36px | 1fr | 140px | 140px | 180px
+              <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 140px 140px 180px", gap: 8, padding: "4px 14px", marginBottom: 6 }}>
+                <div />
+                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Phase</div>
                 <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Start Date</div>
                 <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>End Date</div>
                 <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Status / Actions</div>
@@ -679,8 +690,8 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
             )}
             {phases.map(phase => <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} user={user} isOwner={isOwner} />)}
             {isOwner && isMobile && (
-              <button onClick={() => { if (window.confirm("Delete this lot?")) onDelete(lot.id); }} style={{ width: "100%", marginTop: 20, background: "#fff", border: "1.5px solid #fecaca", color: "#ef4444", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
-                <Icons.Trash /> Delete Lot
+              <button onClick={() => { if (window.confirm("Delete this address?")) onDelete(lot.id); }} style={{ width: "100%", marginTop: 20, background: "#fff", border: "1.5px solid #fecaca", color: "#ef4444", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                <Icons.Trash /> Delete Address
               </button>
             )}
           </>
@@ -773,12 +784,11 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
   }, [selected?.id]);
 
   if (selected) {
-
     return (
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <button onClick={() => { setSelected(null); loadLots(); }} style={{ ...btnOutline, padding: "7px 12px" }}><Icons.Back /> Pipeline</button>
-          <div style={{ flex: 1, fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#1e293b" }}>{selected.address || "New Prospective Lot"}</div>
+          <div style={{ flex: 1, fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#1e293b" }}>{selected.address || "New Prospective Address"}</div>
           <button onClick={() => { if (window.confirm("Convert to active development?")) convertLot(selected); }} style={{ ...btnGreen, padding: "7px 14px", fontSize: 12 }}><Icons.Convert /> Convert</button>
           <button onClick={() => { if (window.confirm("Delete?")) deleteLot(selected.id); }} style={{ background: "transparent", border: "1px solid #fecaca", color: "#ef4444", borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Trash /></button>
         </div>
@@ -797,7 +807,7 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
           </div>
           <div><label style={labelStyle}>Follow-up Date</label><input type="date" defaultValue={selected.follow_up_date || ""} onBlur={e => saveField(selected.id, "follow_up_date", e.target.value)} style={fieldStyle} /></div>
         </div>
-        <div style={{ marginBottom: 16 }}><label style={labelStyle}>Notes</label><textarea defaultValue={selected.notes || ""} onBlur={e => saveField(selected.id, "notes", e.target.value)} placeholder="Notes about this lot..." rows={3} style={{ ...fieldStyle, resize: "vertical" }} /></div>
+        <div style={{ marginBottom: 16 }}><label style={labelStyle}>Notes</label><textarea defaultValue={selected.notes || ""} onBlur={e => saveField(selected.id, "notes", e.target.value)} placeholder="Notes about this address..." rows={3} style={{ ...fieldStyle, resize: "vertical" }} /></div>
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -871,8 +881,8 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
       {filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-          <div style={{ fontSize: 16, color: "#1e293b", fontWeight: 600, marginBottom: 6 }}>No prospective lots yet</div>
-          <p style={{ fontSize: 14, margin: 0, color: "#94a3b8" }}>Add lots you're scouting.</p>
+          <div style={{ fontSize: 16, color: "#1e293b", fontWeight: 600, marginBottom: 6 }}>No prospective addresses yet</div>
+          <p style={{ fontSize: 14, margin: 0, color: "#94a3b8" }}>Add addresses you're scouting.</p>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: 12, marginBottom: 80 }}>
@@ -898,7 +908,8 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
           })}
         </div>
       )}
-      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 50 }}>
+      {/* CHANGE 1: FAB button raised above mobile nav, renamed to New Address */}
+      <div style={{ position: "fixed", bottom: 80, right: 24, zIndex: 50 }}>
         <button onClick={addLot} disabled={adding} style={{ ...btnGreen, borderRadius: "50%", padding: 16, boxShadow: `0 4px 20px rgba(74,222,128,0.3)` }}><Icons.Plus /></button>
       </div>
     </div>
@@ -907,7 +918,7 @@ function ProspectiveLots({ user, onConvert, isMobile }) {
 
 
 // Action Items Dashboard Component
-function ActionItemsDashboard({ lots, user }) {
+function ActionItemsDashboard({ lots, phases: allPhasesMap, user }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
@@ -919,13 +930,35 @@ function ActionItemsDashboard({ lots, user }) {
     setLoading(true);
     try {
       const lotIds = lots.map(l => l.id);
-      // Single call to get all incomplete checklist items across all lots
       const { data: checklistItems } = await supabase
         .from("phase_checklist")
         .select("*, phases(phase_name, lot_id)")
         .eq("completed", false)
         .eq("is_preset", false)
         .in("lot_id", lotIds);
+
+      // CHANGE 8: Phase start alerts — phases due to start (0–2 days ago, still not_started)
+      const today = new Date();
+      const startAlerts = [];
+      for (const lot of lots) {
+        const phases = allPhasesMap[lot.id] || [];
+        for (const phase of phases) {
+          if (phase.projected_start && phase.status === "not_started") {
+            const startDate = new Date(phase.projected_start + "T00:00:00");
+            const daysSince = Math.round((today - startDate) / 86400000);
+            if (daysSince >= 0 && daysSince <= 2) {
+              startAlerts.push({
+                id: `start-alert-${phase.id}`,
+                item: `${phase.phase_name} due to start`,
+                lot_id: lot.id,
+                lot_address: lot.address,
+                phase_name: "Start Alert",
+                isStartAlert: true,
+              });
+            }
+          }
+        }
+      }
 
       if (checklistItems) {
         const lotMap = {};
@@ -935,7 +968,9 @@ function ActionItemsDashboard({ lots, user }) {
           lot_address: lotMap[item.lot_id] || "Unknown",
           phase_name: item.phases?.phase_name || "Unknown Phase",
         }));
-        setItems(allItems);
+        setItems([...startAlerts, ...allItems]);
+      } else {
+        setItems(startAlerts);
       }
     } catch(e) {
       console.error("Error loading action items:", e);
@@ -944,6 +979,7 @@ function ActionItemsDashboard({ lots, user }) {
   };
 
   const completeItem = async (item) => {
+    if (item.isStartAlert) return; // start alerts auto-dismiss, not manually completable
     await supabase.from("phase_checklist").update({ completed: true, completed_by: user.id, completed_at: new Date().toISOString() }).eq("id", item.id);
     loadItems();
   };
@@ -951,7 +987,6 @@ function ActionItemsDashboard({ lots, user }) {
   if (loading) return null;
   if (items.length === 0) return null;
 
-  // Group by lot
   const grouped = items.reduce((acc, item) => {
     const key = item.lot_address || item.lot_id;
     if (!acc[key]) acc[key] = [];
@@ -961,7 +996,6 @@ function ActionItemsDashboard({ lots, user }) {
 
   return (
     <div style={{ marginBottom: 24, background: "linear-gradient(135deg, #000 0%, #0f172a 100%)", border: `2px solid ${G}`, borderRadius: 16, overflow: "hidden" }}>
-      {/* Header */}
       <div onClick={() => setCollapsed(p => !p)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ background: G, borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>⚡</div>
@@ -976,22 +1010,25 @@ function ActionItemsDashboard({ lots, user }) {
         </div>
       </div>
 
-      {/* Items */}
       {!collapsed && (
         <div style={{ borderTop: `1px solid #1e293b` }}>
           {Object.entries(grouped).map(([lotAddress, lotItems]) => (
             <div key={lotAddress} style={{ borderBottom: "1px solid #1e293b" }}>
               <div style={{ padding: "8px 18px 4px", fontSize: 11, color: G, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                🏠 {lotAddress || "Unnamed Lot"}
+                🏠 {lotAddress || "Unnamed"}
               </div>
               {lotItems.map(item => (
                 <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 18px" }}>
-                  <button onClick={() => completeItem(item)} style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${G}`, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.15s" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = G; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-                  </button>
+                  {item.isStartAlert ? (
+                    <div style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>⏰</div>
+                  ) : (
+                    <button onClick={() => completeItem(item)} style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${G}`, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.15s" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = G; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                    </button>
+                  )}
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: "#e5e7eb" }}>{item.item}</div>
+                    <div style={{ fontSize: 13, color: item.isStartAlert ? "#fde68a" : "#e5e7eb" }}>{item.item}</div>
                     <div style={{ fontSize: 11, color: "#475569" }}>{item.phase_name}</div>
                   </div>
                 </div>
@@ -1003,9 +1040,6 @@ function ActionItemsDashboard({ lots, user }) {
     </div>
   );
 }
-
-
-
 
 
 // Lot Timeline / Gantt Chart
@@ -1022,7 +1056,6 @@ function LotTimeline({ lot, phases }) {
     );
   }
 
-  // Find date range
   const allDates = phasesWithDates.flatMap(p => [p.projected_start, p.projected_end].filter(Boolean));
   const minDate = new Date(Math.min(...allDates.map(d => new Date(d + "T00:00:00"))));
   const maxDate = new Date(Math.max(...allDates.map(d => new Date(d + "T00:00:00"))));
@@ -1067,12 +1100,7 @@ function LotTimeline({ lot, phases }) {
             <div style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", fontFamily: "'DM Serif Display', serif" }}>{fmtDate(projectedEnd)}</div>
           </div>
           <div style={{ display: "flex", gap: 12 }}>
-            {[
-              { color: G2, label: "Complete" },
-              { color: "#f59e0b", label: "In Progress" },
-              { color: "#3b82f6", label: "Upcoming" },
-              { color: "#ef4444", label: "Overdue" },
-            ].map(l => (
+            {[{ color: G2, label: "Complete" }, { color: "#f59e0b", label: "In Progress" }, { color: "#3b82f6", label: "Upcoming" }, { color: "#ef4444", label: "Overdue" }].map(l => (
               <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: l.color }} />
                 {l.label}
@@ -1081,7 +1109,6 @@ function LotTimeline({ lot, phases }) {
           </div>
         </div>
       )}
-
       <div style={{ ...cardStyle, overflowX: "auto" }}>
         <div style={{ minWidth: 600 }}>
           {phasesWithDates.map((phase, i) => (
@@ -1090,25 +1117,11 @@ function LotTimeline({ lot, phases }) {
                 {phase.phase_name}
               </div>
               <div style={{ flex: 1, position: "relative", height: 28, background: "#f1f5f9", borderRadius: 4 }}>
-                {/* Today line */}
                 {todayOffset >= 0 && todayOffset <= totalDays && (
                   <div style={{ position: "absolute", left: `${todayOffset / totalDays * 100}%`, top: 0, bottom: 0, width: 2, background: "#ef4444", zIndex: 2 }} />
                 )}
-                {/* Phase bar */}
                 {(phase.projected_start || phase.projected_end) && (
-                  <div style={{
-                    position: "absolute",
-                    left: `${getLeft(phase.projected_start || phase.projected_end)}%`,
-                    width: `${getWidth(phase.projected_start, phase.projected_end) || 2}%`,
-                    top: 4,
-                    height: 20,
-                    background: getBarColor(phase),
-                    borderRadius: 4,
-                    display: "flex",
-                    alignItems: "center",
-                    paddingLeft: 6,
-                    minWidth: 4,
-                  }} title={`${phase.phase_name}: ${fmtDate(phase.projected_start)} - ${fmtDate(phase.projected_end)}`}>
+                  <div style={{ position: "absolute", left: `${getLeft(phase.projected_start || phase.projected_end)}%`, width: `${getWidth(phase.projected_start, phase.projected_end) || 2}%`, top: 4, height: 20, background: getBarColor(phase), borderRadius: 4, display: "flex", alignItems: "center", paddingLeft: 6, minWidth: 4 }} title={`${phase.phase_name}: ${fmtDate(phase.projected_start)} - ${fmtDate(phase.projected_end)}`}>
                     <span style={{ fontSize: 9, color: "#fff", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden" }}>
                       {fmtDate(phase.projected_start)}{phase.projected_end ? ` - ${fmtDate(phase.projected_end)}` : ""}
                     </span>
@@ -1129,7 +1142,6 @@ function CalendarView({ onBack, isMobile, userRole }) {
   const [phases, setPhases] = useState({});
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [viewStart, setViewStart] = useState(new Date());
 
   useEffect(() => { 
     supabase.from("lots").select("*").then(({ data }) => {
@@ -1188,8 +1200,6 @@ function CalendarView({ onBack, isMobile, userRole }) {
   const { days, firstDayOfWeek } = getDaysInMonth(currentMonth);
   const today = new Date().toISOString().split("T")[0];
   const monthName = currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-
-  // Find overlapping days
   const overlappingDays = days.filter(day => getPhasesForDay(day).length > 2).map(d => d.toISOString().split("T")[0]);
 
   return (
@@ -1211,44 +1221,30 @@ function CalendarView({ onBack, isMobile, userRole }) {
           <div style={{ textAlign: "center", padding: "60px 0", color: "#64748b" }}>Loading calendar...</div>
         ) : (
           <>
-            {/* Legend */}
             <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
-              {[
-                { color: "#3b82f6", label: "Not Started" },
-                { color: "#f59e0b", label: "In Progress" },
-                { color: G2, label: "Complete" },
-                { color: "#ef4444", label: "Overlap (3+ jobs)" },
-              ].map(l => (
+              {[{ color: "#3b82f6", label: "Not Started" }, { color: "#f59e0b", label: "In Progress" }, { color: G2, label: "Complete" }, { color: "#ef4444", label: "Overlap (3+ jobs)" }].map(l => (
                 <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#64748b" }}>
                   <div style={{ width: 12, height: 12, borderRadius: 3, background: l.color }} />
                   {l.label}
                 </div>
               ))}
             </div>
-
-            {/* Calendar grid */}
             <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #e2e8f0", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-              {/* Day headers */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>
                 {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
                   <div key={d} style={{ padding: "10px 0", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>{d}</div>
                 ))}
               </div>
-
-              {/* Calendar days */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-                {/* Empty cells for first week */}
                 {Array(firstDayOfWeek).fill(null).map((_, i) => (
                   <div key={`empty-${i}`} style={{ minHeight: isMobile ? 60 : 100, borderRight: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }} />
                 ))}
-
                 {days.map(day => {
                   const dateStr = day.toISOString().split("T")[0];
                   const isToday = dateStr === today;
                   const dayPhases = getPhasesForDay(day);
                   const hasOverlap = dayPhases.length >= 3;
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-
                   return (
                     <div key={dateStr} style={{ minHeight: isMobile ? 60 : 100, borderRight: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9", padding: "6px", background: hasOverlap ? "#fef2f2" : isWeekend ? "#fafafa" : "#fff", position: "relative" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -1273,8 +1269,6 @@ function CalendarView({ onBack, isMobile, userRole }) {
                 })}
               </div>
             </div>
-
-            {/* Overlap warnings */}
             {overlappingDays.length > 0 && (
               <div style={{ marginTop: 16, background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 12, padding: "14px 18px" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#991b1b", marginBottom: 8 }}>⚠ Scheduling Conflicts</div>
@@ -1302,23 +1296,25 @@ function TeamChat({ user, onBack, userRole }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const messagesEndRef = useRef(null);
   const [globalTeam, setGlobalTeam] = useState([]);
+  // CHANGE 3: Chat keyword search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => { 
     loadMessages(); 
     loadTeam();
-    // Poll for new messages every 10 seconds
     const interval = setInterval(loadMessages, 10000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!searchQuery) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, searchQuery]);
 
   const loadMessages = async () => {
-    const { data } = await supabase.from("team_messages").select("*").order("created_at", { ascending: true }).limit(100);
+    const { data } = await supabase.from("team_messages").select("*").order("created_at", { ascending: true }).limit(200);
     if (data) setMessages(data);
   };
 
@@ -1338,11 +1334,7 @@ function TeamChat({ user, onBack, userRole }) {
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
     setSending(true);
-    await supabase.from("team_messages").insert({
-      user_id: user.id,
-      user_email: user.email,
-      message: newMessage.trim()
-    });
+    await supabase.from("team_messages").insert({ user_id: user.id, user_email: user.email, message: newMessage.trim() });
     setNewMessage("");
     loadMessages();
     setSending(false);
@@ -1356,14 +1348,28 @@ function TeamChat({ user, onBack, userRole }) {
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   };
 
-  // Group consecutive messages from same user
-  const groupedMessages = messages.reduce((acc, msg, i) => {
-    const prev = messages[i - 1];
+  const filteredMessages = searchQuery.trim()
+    ? messages.filter(m => m.message.toLowerCase().includes(searchQuery.toLowerCase()))
+    : messages;
+
+  const groupedMessages = filteredMessages.reduce((acc, msg, i) => {
+    const prev = filteredMessages[i - 1];
     const isFirst = !prev || prev.user_email !== msg.user_email || 
-      (new Date(msg.created_at) - new Date(prev.created_at)) > 300000;
+      (new Date(msg.created_at) - new Date(prev.created_at)) > 300000 || searchQuery;
     acc.push({ ...msg, isFirst });
     return acc;
   }, []);
+
+  // Highlight matching text
+  const highlight = (text) => {
+    if (!searchQuery.trim()) return text;
+    const parts = text.split(new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi"));
+    return parts.map((part, i) =>
+      part.toLowerCase() === searchQuery.toLowerCase()
+        ? <mark key={i} style={{ background: "#fde68a", color: "#92400e", borderRadius: 2, padding: "0 2px" }}>{part}</mark>
+        : part
+    );
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
@@ -1371,13 +1377,37 @@ function TeamChat({ user, onBack, userRole }) {
         <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={onBack} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Back /> Dashboard</button>
           <div style={{ fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>Team Chat</div>
-          <div style={{ marginLeft: "auto", fontSize: 12, color: "#64748b" }}>Updates every 10s</div>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            {/* CHANGE 3: Search toggle */}
+            <button onClick={() => { setShowSearch(p => !p); if (showSearch) setSearchQuery(""); }} style={{ background: showSearch ? G3 : "transparent", border: `1px solid ${showSearch ? G : "#333"}`, color: showSearch ? G2 : "#94a3b8", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", gap: 5 }}>
+              🔍{!showSearch && " Search"}
+            </button>
+            {!showSearch && <div style={{ fontSize: 12, color: "#64748b" }}>Updates every 10s</div>}
+          </div>
         </div>
+        {/* CHANGE 3: Search bar */}
+        {showSearch && (
+          <div style={{ maxWidth: 800, margin: "8px auto 0", position: "relative" }}>
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search messages by keyword..."
+              style={{ width: "100%", background: "#1e293b", border: `1.5px solid ${G}`, borderRadius: 10, color: "#f1f5f9", fontSize: 14, padding: "10px 14px 10px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }}
+            />
+            <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.5 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f1f5f9" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            {searchQuery && <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#64748b" }}>{filteredMessages.length} result{filteredMessages.length !== 1 ? "s" : ""}</div>}
+          </div>
+        )}
       </div>
 
-      {/* Messages */}
       <div style={{ flex: 1, maxWidth: 800, margin: "0 auto", width: "100%", padding: "16px 24px", paddingBottom: 100, overflowY: "auto" }}>
-        {messages.length === 0 ? (
+        {searchQuery && filteredMessages.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 14 }}>No messages found for "{searchQuery}"</div>
+          </div>
+        ) : messages.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: "#1e293b", marginBottom: 6 }}>No messages yet</div>
@@ -1406,7 +1436,7 @@ function TeamChat({ user, onBack, userRole }) {
                     </div>
                   )}
                   <div style={{ background: isMe ? "#000" : "#fff", color: isMe ? G : "#1e293b", border: isMe ? `1.5px solid ${G}` : "1.5px solid #e2e8f0", borderRadius: isMe ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "10px 14px", fontSize: 14, lineHeight: 1.5, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                    {msg.message}
+                    {highlight(msg.message)}
                   </div>
                 </div>
               </div>
@@ -1416,7 +1446,6 @@ function TeamChat({ user, onBack, userRole }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: "1.5px solid #e2e8f0", padding: "12px 24px", zIndex: 10 }}>
         <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", gap: 10 }}>
           <input 
@@ -1437,7 +1466,7 @@ function TeamChat({ user, onBack, userRole }) {
 
 
 // ============================================================
-// WARRANTY & PUNCH LIST SIGN PAGES (Public - no login needed)
+// WARRANTY & PUNCH LIST SIGN PAGES
 // ============================================================
 
 function WarrantySignPage({ token }) {
@@ -1688,13 +1717,10 @@ function WarrantiesTab({ lotId, lot }) {
   };
 
   const getSignature = (warrantyId, type) => (signatures[warrantyId] || []).find(s => s.signature_type === type);
-  const getLink = (token) => `${window.location.origin}?warranty=${token}`;
-
   const pr = (priority) => PRIORITIES[priority] || PRIORITIES.normal;
 
   return (
     <div>
-      {/* Add warranty form */}
       {showForm && (
         <div style={{ ...cardStyle, marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>New Warranty Record</div>
@@ -1755,8 +1781,6 @@ function WarrantiesTab({ lotId, lot }) {
                 <button onClick={() => deleteWarranty(warranty.id)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer" }}><Icons.Trash /></button>
               </div>
             </div>
-
-            {/* Progress */}
             {items.length > 0 && (
               <div style={{ marginBottom: 10 }}>
                 <div style={{ background: "#f1f5f9", borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 4 }}>
@@ -1765,8 +1789,6 @@ function WarrantiesTab({ lotId, lot }) {
                 <div style={{ fontSize: 11, color: "#64748b" }}>{complete}/{items.length} items complete</div>
               </div>
             )}
-
-            {/* Signature status */}
             <div style={{ display: "flex", gap: 8, marginBottom: isExpanded ? 12 : 0, flexWrap: "wrap" }}>
               {workOrderSig?.homeowner_name ? (
                 <span style={{ fontSize: 11, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "3px 8px", borderRadius: 20, fontWeight: 600 }}>✓ Work Order Signed by {workOrderSig.homeowner_name}</span>
@@ -1783,10 +1805,8 @@ function WarrantiesTab({ lotId, lot }) {
                 </button>
               )}
             </div>
-
             {isExpanded && (
               <div>
-                {/* Items list */}
                 <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Warranty Items</div>
                 {items.map(item => (
                   <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
@@ -1811,14 +1831,12 @@ function WarrantiesTab({ lotId, lot }) {
           </div>
         );
       })}
-
       {!showForm && (
         <button onClick={() => setShowForm(true)} style={{ ...btnOutline, marginTop: 8 }}><Icons.Plus /> Add Warranty Record</button>
       )}
     </div>
   );
 }
-
 
 // Punch List with Sign-off
 function PunchListWithSignoff({ lotId, lot, user, isOwner }) {
@@ -1942,9 +1960,7 @@ function GlobalTeam({ onBack }) {
           <div style={{ fontSize: 18, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>Team Management</div>
         </div>
       </div>
-
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px" }}>
-        {/* Role legend */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 24 }}>
           {ROLES.map(r => (
             <div key={r.value} style={{ background: rc(r.value).bg, border: `1.5px solid ${rc(r.value).border}`, borderRadius: 10, padding: "10px 14px" }}>
@@ -1953,8 +1969,6 @@ function GlobalTeam({ onBack }) {
             </div>
           ))}
         </div>
-
-        {/* Add member form */}
         <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 14, padding: 20, marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>Add Team Member</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
@@ -1973,8 +1987,6 @@ function GlobalTeam({ onBack }) {
           <button onClick={addMember} disabled={saving || !name.trim() || !email.trim()} style={{ ...btnGreen, padding: "10px 20px", opacity: (!name.trim() || !email.trim()) ? 0.5 : 1 }}>{saving ? "Adding..." : "Add Member"}</button>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 10 }}>They need to sign up at your app URL using this email to access the app.</div>
         </div>
-
-        {/* Team list */}
         {members.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8", fontSize: 14 }}>No team members yet.</div>
         ) : (
@@ -2002,36 +2014,77 @@ function GlobalTeam({ onBack }) {
   );
 }
 
+// CHANGE 5: Sort lots by completion % desc, then alphabetical
+function sortLots(lotList, phasesMap) {
+  return [...lotList].sort((a, b) => {
+    const progA = getOverallProgress(phasesMap[a.id] || []).pct;
+    const progB = getOverallProgress(phasesMap[b.id] || []).pct;
+    if (progB !== progA) return progB - progA;
+    return (a.address || "").localeCompare(b.address || "");
+  });
+}
+
 // Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, onShowCalendar, onToggleNotifications, onMarkChatRead, notifications, unreadChat, isOwner, userLotIds, theme, toggleTheme }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, onShowCalendar, onToggleNotifications, onMarkChatRead, notifications, unreadChat, isOwner, userLotIds, theme, toggleTheme, userRole }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
   const [lotInterest, setLotInterest] = useState({});
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // CHANGE 2
   const [lotsLoaded, setLotsLoaded] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  // CHANGE 7: Draggable section order for Micah & Chris
+  const [sectionOrder, setSectionOrder] = useState(["spec", "customer", "vacant", "micah"]);
+  const [draggedSection, setDraggedSection] = useState(null);
   const isDark = theme === "dark";
-  const bg = isDark ? "#0a0f1a" : "#f8fafc";
-  const cardBg = isDark ? "#0f172a" : "#fff";
-  const cardBorder = isDark ? "#1e293b" : "#e2e8f0";
-  const textPrimary = isDark ? "#f1f5f9" : "#1e293b";
-  const textSecondary = isDark ? "#64748b" : "#64748b";
+
+  const isMicahOrChris = userRole === "micah" || userRole === "chris";
 
   useEffect(() => { loadLots(); }, []);
 
+  // CHANGE 7: Load saved section order from user_preferences
+  useEffect(() => {
+    if (!isMicahOrChris) return;
+    supabase.from("user_preferences").select("section_order").eq("id", user.id).single().then(({ data }) => {
+      if (data?.section_order) {
+        try { setSectionOrder(JSON.parse(data.section_order)); } catch(e) {}
+      }
+    });
+  }, [user.id, isMicahOrChris]);
+
+  const saveSectionOrder = async (newOrder) => {
+    await supabase.from("user_preferences").upsert({ id: user.id, section_order: JSON.stringify(newOrder) });
+  };
+
+  const handleDragStart = (e, section) => {
+    setDraggedSection(section);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, section) => {
+    e.preventDefault();
+    if (!draggedSection || draggedSection === section) return;
+    const newOrder = [...sectionOrder];
+    const fromIdx = newOrder.indexOf(draggedSection);
+    const toIdx = newOrder.indexOf(section);
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, draggedSection);
+    setSectionOrder(newOrder);
+  };
+
+  const handleDrop = async () => {
+    setDraggedSection(null);
+    if (isMicahOrChris) await saveSectionOrder(sectionOrder);
+  };
+
   const loadLots = async () => {
-    let query = supabase.from("lots").select("*").order("created_at");
-    const { data: lotsData } = await query;
+    const { data: lotsData } = await supabase.from("lots").select("*").order("created_at");
     if (lotsData) {
-      // Filter lots based on role
-      const visibleLots = lotsData;
-      setLots(visibleLots);
+      setLots(lotsData);
       setLotsLoaded(true);
-      for (const lot of visibleLots) {
+      for (const lot of lotsData) {
         const { data: phases } = await supabase.from("phases").select("*").eq("lot_id", lot.id);
         if (phases) setLotPhases(p => ({ ...p, [lot.id]: phases }));
-        // Load interest for daily burn
         if (isOwner) {
           const { data: loans } = await supabase.from("interest_loans").select("*").eq("lot_id", lot.id);
           const { data: draws } = loans ? await supabase.from("loan_draws").select("*").in("loan_id", loans.map(l => l.id)) : { data: [] };
@@ -2052,6 +2105,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
     }
   };
 
+  // CHANGE 1: Add New Address button
   const addLot = async () => {
     const { data: lotData } = await supabase.from("lots").insert({ address: "", owner: "", budget: "", notes: "", lot_type: "spec" }).select().single();
     if (lotData) {
@@ -2065,34 +2119,49 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
   const getPhases = (lotId) => lotPhases[lotId] || [];
 
   const duplicateLot = async (lot) => {
-    if (!window.confirm(`Duplicate "${lot.address || "this lot"}"? This will create a new lot with the same phases.`)) return;
+    if (!window.confirm(`Duplicate "${lot.address || "this address"}"?`)) return;
     const { data: newLot } = await supabase.from("lots").insert({ address: (lot.address || "") + " (Copy)", owner: lot.owner, budget: lot.budget, notes: lot.notes, lot_type: lot.lot_type }).select().single();
     if (newLot) {
       const phaseRows = PHASES.map(name => ({ lot_id: newLot.id, phase_name: name, status: "not_started" }));
       await supabase.from("phases").insert(phaseRows);
       loadLots();
-      alert("Lot duplicated!");
+      alert("Address duplicated!");
     }
   };
 
+  // CHANGE 4: Micah's Projects section (lot_type === "micah")
   const specLots = lots.filter(l => !l.lot_type || l.lot_type === "spec" || l.lot_type === "construction");
   const customerLots = lots.filter(l => l.lot_type === "customer");
   const vacantLots = lots.filter(l => l.lot_type === "vacant");
+  const micahLots = lots.filter(l => l.lot_type === "micah");
 
-  const filtered = (lotList) => lotList.filter(l => {
-    const phases = getPhases(l.id);
-    if (searchQuery && !((l.address || "").toLowerCase().includes(searchQuery.toLowerCase()) || (l.owner || "").toLowerCase().includes(searchQuery.toLowerCase()))) return false;
-    if (filterBy === "inprogress") return phases.some(p => p.status === STATUS.IN_PROGRESS);
-    if (filterBy === "overdue") return countOverdue(phases) > 0;
-    if (filterBy === "complete") return getOverallProgress(phases).pct === 100;
-    if (filterBy === "notstarted") return getOverallProgress(phases).pct === 0;
-    return true;
-  });
+  const filtered = (lotList) => {
+    const base = lotList.filter(l => {
+      const phases = getPhases(l.id);
+      // CHANGE 2: Search Address
+      if (searchQuery && !((l.address || "").toLowerCase().includes(searchQuery.toLowerCase()) || (l.owner || "").toLowerCase().includes(searchQuery.toLowerCase()))) return false;
+      if (filterBy === "inprogress") return phases.some(p => p.status === STATUS.IN_PROGRESS);
+      if (filterBy === "overdue") return countOverdue(phases) > 0;
+      if (filterBy === "complete") return getOverallProgress(phases).pct === 100;
+      if (filterBy === "notstarted") return getOverallProgress(phases).pct === 0;
+      return true;
+    });
+    // CHANGE 5: Sort by completion % desc, then alphabetical
+    return sortLots(base, lotPhases);
+  };
 
   const totalOverdue = lots.reduce((s, l) => s + countOverdue(getPhases(l.id)), 0);
   const totalDailyBurn = Object.values(lotInterest).reduce((s, v) => s + v, 0);
 
-  const LotCard = ({ lot }) => {
+  // CHANGE 4: Micah can toggle own property into Micah's Projects section
+  const isMicah = userRole === "micah";
+  const toggleMicahProject = async (lot) => {
+    const newType = lot.lot_type === "micah" ? "spec" : "micah";
+    await supabase.from("lots").update({ lot_type: newType }).eq("id", lot.id);
+    loadLots();
+  };
+
+  const LotCard = ({ lot, showMicahToggle }) => {
     const phases = getPhases(lot.id);
     const prog = getOverallProgress(phases);
     const overdue = countOverdue(phases);
@@ -2134,10 +2203,26 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
               })()}
             </div>
           ) : <div />}
-          {isOwner && <button onClick={e => { e.stopPropagation(); duplicateLot(lot); }} style={{ background: "transparent", border: "1px solid #e2e8f0", borderRadius: 6, color: "#94a3b8", padding: "3px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Duplicate</button>}
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {/* CHANGE 4: Micah toggle */}
+            {showMicahToggle && isMicah && (
+              <button onClick={e => { e.stopPropagation(); toggleMicahProject(lot); }} style={{ background: lot.lot_type === "micah" ? G3 : "transparent", border: `1px solid ${lot.lot_type === "micah" ? G : "#e2e8f0"}`, borderRadius: 6, color: lot.lot_type === "micah" ? G2 : "#94a3b8", padding: "3px 8px", cursor: "pointer", fontSize: 10, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                {lot.lot_type === "micah" ? "✓ My Project" : "+ My Project"}
+              </button>
+            )}
+            {isOwner && <button onClick={e => { e.stopPropagation(); duplicateLot(lot); }} style={{ background: "transparent", border: "1px solid #e2e8f0", borderRadius: 6, color: "#94a3b8", padding: "3px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Duplicate</button>}
+          </div>
         </div>
       </div>
     );
+  };
+
+  // CHANGE 4 & 7: Section definitions for rendering and drag
+  const sectionDefs = {
+    spec: { key: "spec", label: "Spec Homes", lots: specLots, badge: { bg: "#fffbeb", border: "#fde68a", color: "#92400e" } },
+    customer: { key: "customer", label: "Customer Homes", lots: customerLots, badge: { bg: "#eff6ff", border: "#bfdbfe", color: "#1e40af" } },
+    vacant: { key: "vacant", label: "Vacant Lots / Inventory", lots: vacantLots, badge: { bg: "#f1f5f9", border: "#e2e8f0", color: "#64748b" } },
+    micah: { key: "micah", label: "Micah's Projects", lots: micahLots, badge: { bg: G3, border: G, color: G2 } },
   };
 
   return (
@@ -2150,20 +2235,14 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {!isMobile && <span style={{ fontSize: 12, color: "#475569" }}>{user.email}</span>}
-            
-            {/* Bell notification icon */}
             <div style={{ position: "relative" }}>
-              <button onClick={onToggleNotifications} style={{ background: "transparent", border: "1px solid #333", color: notifications.length > 0 ? G : "#94a3b8", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center" }}>
-                🔔
-              </button>
+              <button onClick={onToggleNotifications} style={{ background: "transparent", border: "1px solid #333", color: notifications.length > 0 ? G : "#94a3b8", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center" }}>🔔</button>
               {notifications.length > 0 && (
                 <div style={{ position: "absolute", top: -6, right: -6, background: "#ef4444", color: "#fff", borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>
                   {notifications.length > 9 ? "9+" : notifications.length}
                 </div>
               )}
             </div>
-
-            {/* Chat with unread badge */}
             <div style={{ position: "relative" }}>
               <button onClick={() => { onShowChat(); onMarkChatRead(); }} style={{ background: "transparent", border: `1px solid ${unreadChat > 0 ? G : "#333"}`, color: unreadChat > 0 ? G : "#94a3b8", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
                 💬 {!isMobile && "Chat"}
@@ -2174,36 +2253,10 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
                 </div>
               )}
             </div>
-
             <button onClick={onSignOut} style={{ background: "transparent", border: "1px solid #333", color: "#94a3b8", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Sign Out</button>
           </div>
         </div>
       </div>
-
-      {/* Notification dropdown */}
-      {onToggleNotifications && showNotifications && (
-        <div style={{ position: "fixed", top: 60, right: 20, width: 320, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 14, boxShadow: "0 8px 30px rgba(0,0,0,0.15)", zIndex: 200, overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", background: "#000", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: G }}>Notifications</div>
-            <button onClick={() => { markNotificationsRead(); }} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>Mark all read</button>
-          </div>
-          {notifications.length === 0 ? (
-            <div style={{ padding: "24px 16px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No new notifications</div>
-          ) : (
-            <div style={{ maxHeight: 320, overflowY: "auto" }}>
-              {notifications.map(n => (
-                <div key={n.id} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 10, alignItems: "flex-start" }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: G, marginTop: 5, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.4 }}>{n.message}</div>
-                    <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{new Date(n.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} at {new Date(n.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px" : "24px 32px" }}>
         {isOwner && (
@@ -2212,8 +2265,9 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
             <button onClick={onShowPipeline} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}><Icons.Map /> Prospective Pipeline</button>
             <button onClick={onShowTeam} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>👥 Team</button>
             <button onClick={onShowCalendar} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>📅 Calendar</button>
+            {/* CHANGE 2: Search Address placeholder */}
             <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
-              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search lots..." style={{ width: "100%", background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, color: isDark ? "#f1f5f9" : "#1e293b", fontSize: 13, padding: "8px 14px 8px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search Address..." style={{ width: "100%", background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, color: isDark ? "#f1f5f9" : "#1e293b", fontSize: 13, padding: "8px 14px 8px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
               <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </div>
             <button onClick={toggleTheme} style={{ background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontSize: 18, lineHeight: 1 }} title="Toggle dark/light mode">
@@ -2240,7 +2294,8 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
           </div>
         )}
 
-        {lotsLoaded && lots.length > 0 && <ActionItemsDashboard lots={lots} user={user} />}
+        {/* CHANGE 8: Pass lotPhases to ActionItemsDashboard */}
+        {lotsLoaded && lots.length > 0 && <ActionItemsDashboard lots={lots} phases={lotPhases} user={user} />}
 
         {isOwner && totalDailyBurn > 0 && (
           <div style={{ background: "#fff", border: "1.5px solid #fecaca", borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -2266,52 +2321,48 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
         {lots.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0" }}>
             <div style={{ fontSize: 56, marginBottom: 16 }}>🏗️</div>
-            <div style={{ fontSize: 18, color: "#1e293b", fontWeight: 600, marginBottom: 6 }}>No lots yet</div>
+            <div style={{ fontSize: 18, color: "#1e293b", fontWeight: 600, marginBottom: 6 }}>No addresses yet</div>
             <p style={{ fontSize: 14, margin: 0, color: "#94a3b8" }}>Add your first development to get started.</p>
           </div>
         ) : (
           <>
-            {filtered(specLots).length > 0 && (
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Spec Homes</div>
-                  <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#92400e", fontWeight: 700 }}>{filtered(specLots).length}</div>
+            {/* CHANGE 4 & 7: Render sections in sectionOrder, draggable for Micah/Chris */}
+            {sectionOrder.map(sectionKey => {
+              const def = sectionDefs[sectionKey];
+              if (!def) return null;
+              const sectionLots = filtered(def.lots);
+              if (sectionLots.length === 0) return null;
+              const draggable = isMicahOrChris;
+              return (
+                <div
+                  key={sectionKey}
+                  draggable={draggable}
+                  onDragStart={draggable ? (e) => handleDragStart(e, sectionKey) : undefined}
+                  onDragOver={draggable ? (e) => handleDragOver(e, sectionKey) : undefined}
+                  onDrop={draggable ? handleDrop : undefined}
+                  style={{ marginBottom: 28, opacity: draggedSection === sectionKey ? 0.5 : 1, transition: "opacity 0.15s", cursor: draggable ? "grab" : "default" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    {draggable && <span style={{ fontSize: 14, color: "#94a3b8", cursor: "grab" }}>⠿</span>}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{def.label}</div>
+                    <div style={{ background: def.badge.bg, border: `1px solid ${def.badge.border}`, borderRadius: 20, padding: "2px 8px", fontSize: 11, color: def.badge.color, fontWeight: 700 }}>{sectionLots.length}</div>
+                    {sectionKey === "micah" && <div style={{ fontSize: 11, color: "#64748b", fontStyle: "italic" }}>Micah's tracked properties</div>}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
+                    {sectionLots.map(lot => <LotCard key={lot.id} lot={lot} showMicahToggle={true} />)}
+                  </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
-                  {filtered(specLots).map(lot => <LotCard key={lot.id} lot={lot} />)}
-                </div>
-              </div>
-            )}
-            {filtered(customerLots).length > 0 && (
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Customer Homes</div>
-                  <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#1e40af", fontWeight: 700 }}>{filtered(customerLots).length}</div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
-                  {filtered(customerLots).map(lot => <LotCard key={lot.id} lot={lot} />)}
-                </div>
-              </div>
-            )}
-            {filtered(vacantLots).length > 0 && (
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Vacant Lots / Inventory</div>
-                  <div style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#64748b", fontWeight: 700 }}>{filtered(vacantLots).length}</div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
-                  {filtered(vacantLots).map(lot => <LotCard key={lot.id} lot={lot} />)}
-                </div>
-              </div>
-            )}
+              );
+            })}
           </>
         )}
       </div>
 
+      {/* CHANGE 1: Renamed to "New Address", raised above mobile nav */}
       {isOwner && (
-        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 50 }}>
+        <div style={{ position: "fixed", bottom: isMobile ? 80 : 24, right: 24, zIndex: 50 }}>
           <button onClick={addLot} style={{ display: "flex", alignItems: "center", gap: 8, background: "#000", color: G, border: `2px solid ${G}`, borderRadius: isMobile ? "50%" : 12, padding: isMobile ? 16 : "12px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 4px 20px rgba(74,222,128,0.3)` }}>
-            <Icons.Plus />{!isMobile && "Add New Lot"}
+            <Icons.Plus />{!isMobile && "New Address"}
           </button>
         </div>
       )}
@@ -2358,29 +2409,30 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    // Load theme preference
     supabase.from("user_preferences").select("theme").eq("id", user.id).single().then(({ data }) => {
       if (data?.theme) setTheme(data.theme);
     });
-    // Load notifications
     const loadNotifs = async () => {
       const { data } = await supabase.from("notifications").select("*").eq("user_email", user.email).eq("read", false).order("created_at", { ascending: false }).limit(20);
       if (data) setNotifications(data);
-      // Load unread chat
       const { data: msgs } = await supabase.from("team_messages").select("id, read_by").order("created_at", { ascending: false }).limit(50);
       if (msgs) setUnreadChat(msgs.filter(m => !m.read_by?.includes(user.email)).length);
     };
     loadNotifs();
     const interval = setInterval(loadNotifs, 15000);
-    return () => clearInterval(interval);
-    if (user.email === OWNER_EMAIL) { setUserRole("owner"); return; }
+
+    // Load user role
+    if (user.email === OWNER_EMAIL) { setUserRole("owner"); return () => clearInterval(interval); }
     supabase.from("global_team").select("role").eq("email", user.email).single().then(({ data }) => {
       if (data) {
         const r = data.role;
         if (r === "manager") setUserRole("manager");
-        else setUserRole("contractor"); // micah, morgan, chris, contractor, viewer all get contractor access
+        else if (r === "micah") setUserRole("micah");
+        else if (r === "chris") setUserRole("chris");
+        else setUserRole("contractor");
       }
     });
+    return () => clearInterval(interval);
   }, [user]);
 
   const isOwner = userRole === "owner";
@@ -2401,6 +2453,7 @@ export default function App() {
     }
     setUnreadChat(0);
   };
+
   const toggleTheme = async () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
@@ -2510,6 +2563,7 @@ export default function App() {
           userLotIds={userLotIds}
           theme={theme}
           toggleTheme={toggleTheme}
+          userRole={userRole}
         />
       )}
     </>

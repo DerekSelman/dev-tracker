@@ -1,8 +1,33 @@
 export const PHASES = [
-  "Survey","Plans / Engineer","City Permit",
-  "Grading Lot","Walls","Pool","House Layout","Underground","Foundation",
-  "Framing","Rough Mechanicals","Lathing","Drywall / Tape / Texture",
-  "Paint","Cabinets","Floor Tile & Showers","Trim Out","Cleaning","Punch List",
+  "Survey",
+  "Plans / Engineer",
+  "City Permit",
+  "Grading Lot",
+  "Walls",
+  "Pool",
+  "House Layout",
+  "Underground",
+  "Foundation",
+  "Framing",
+  "Roof Dry In",
+  "Rough Mechanicals",
+  "Electrical Rough",
+  "HVAC Rough",
+  "Plumbing Rough",
+  "Low Voltage",
+  "Insulation",
+  "Lathing",
+  "Brown & Stucco",
+  "Drywall / Tape / Texture",
+  "Install Trim",
+  "Paint",
+  "Cabinets",
+  "Electrical Trim Out",
+  "Plumbing Trim Out",
+  "Floor Tile & Showers",
+  "Trim Out",
+  "Cleaning",
+  "Punch List",
 ];
 
 export const STATUS = { NOT_STARTED: "not_started", IN_PROGRESS: "in_progress", COMPLETE: "complete" };
@@ -17,6 +42,37 @@ export const G2 = "#16a34a";
 export const G3 = "#f0fdf4";
 
 export const PROSPECTIVE_STATUSES = ["Scouting","Interested","Offer Made","Under Contract","Passed"];
+
+// Phase checklist presets
+// - Rough Mechanicals: inspection items REMOVED per Derek
+// - Plumbing Rough: Gas Lines added
+// - Pool and Trim Out: unchanged
+export const PHASE_PRESETS = {
+  "Pool": [
+    "Plan Submitted",
+    "Dig",
+    "Plumbing",
+    "Rebar",
+    "Shotcrete",
+    "Tile",
+    "Coping",
+    "Plaster",
+    "Lights",
+    "Pool Equipment",
+  ],
+  "Rough Mechanicals": [
+    // Inspection items removed — electrical, plumbing, HVAC inspections now have their own phases
+  ],
+  "Plumbing Rough": [
+    "Gas Lines",
+  ],
+  "Trim Out": [
+    "Countertops",
+    "Plumbing Fixtures",
+    "Electrical",
+    "Appliances",
+  ],
+};
 
 export function getOverallProgress(phases) {
   const total = PHASES.length;

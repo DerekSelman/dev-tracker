@@ -609,7 +609,8 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
     { id: "finishes", label: "Finishes", roles: ["owner", "manager", "contractor"] },
     { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor"] },
   ];
-  const tabs = allTabs.filter(t => t.roles.includes(userRole));
+  const effectiveRole = ["micah", "morgan", "chris"].includes(userRole) ? "contractor" : userRole;
+  const tabs = allTabs.filter(t => t.roles.includes(effectiveRole));
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
@@ -2141,9 +2142,10 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
     }
   };
 
-  // CHANGE 1: Add New Address button
+  // CHANGE 1: Add New Address button — Micah gets lot_type "micah" automatically
   const addLot = async () => {
-    const { data: lotData } = await supabase.from("lots").insert({ address: "", owner: "", budget: "", notes: "", lot_type: "spec" }).select().single();
+    const lotType = userRole === "micah" ? "micah" : "spec";
+    const { data: lotData } = await supabase.from("lots").insert({ address: "", owner: "", budget: "", notes: "", lot_type: lotType }).select().single();
     if (lotData) {
       const phaseRows = PHASES.map(name => ({ lot_id: lotData.id, phase_name: name, status: STATUS.NOT_STARTED }));
       await supabase.from("phases").insert(phaseRows);
@@ -2394,11 +2396,11 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
         )}
       </div>
 
-      {/* CHANGE 1: Renamed to "New Address", raised above mobile nav */}
-      {isOwner && (
+      {/* CHANGE 1: Renamed to "New Address", raised above mobile nav — visible to owner and Micah */}
+      {(isOwner || userRole === "micah") && (
         <div style={{ position: "fixed", bottom: isMobile ? 80 : 24, right: 24, zIndex: 50 }}>
           <button onClick={addLot} style={{ display: "flex", alignItems: "center", gap: 8, background: "#000", color: G, border: `2px solid ${G}`, borderRadius: isMobile ? "50%" : 12, padding: isMobile ? 16 : "12px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 4px 20px rgba(74,222,128,0.3)` }}>
-            <Icons.Plus />{!isMobile && "New Address"}
+            <Icons.Plus />{!isMobile && (userRole === "micah" ? "My Project" : "New Address")}
           </button>
         </div>
       )}
@@ -2691,6 +2693,215 @@ function FinishesTab({ lotId, lot, user, userRole }) {
 
   const getFileUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
 
+  const exportPDF = () => {
+    // Dynamically load jsPDF from CDN then generate
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    script.onload = () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+      const W = 215.9;
+      const margin = 18;
+      const colW = W - margin * 2;
+      let y = 0;
+
+      const addPage = () => { doc.addPage(); y = 20; };
+      const checkY = (needed = 10) => { if (y + needed > 270) addPage(); };
+
+      // Header
+      doc.setFillColor(0, 0, 0);
+      doc.rect(0, 0, W, 28, "F");
+      doc.setTextColor(74, 222, 128);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("Finish Selection Sheet", margin, 13);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 116, 139);
+      doc.text("Figley Contracting LLC  ·  Arizona License #323084", margin, 21);
+      y = 38;
+
+      // Property info bar
+      doc.setFillColor(240, 253, 244);
+      doc.roundedRect(margin, y, colW, 18, 3, 3, "F");
+      doc.setTextColor(22, 163, 74);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("PROPERTY", margin + 4, y + 6);
+      doc.text("BUYER", margin + colW / 2, y + 6);
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(11);
+      doc.text(lot?.address || "—", margin + 4, y + 13);
+      doc.text(f.buyer || "—", margin + colW / 2, y + 13);
+      y += 26;
+
+      const sectionHeader = (title) => {
+        checkY(14);
+        doc.setFillColor(0, 0, 0);
+        doc.roundedRect(margin, y, colW, 9, 2, 2, "F");
+        doc.setTextColor(74, 222, 128);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text(title.toUpperCase(), margin + 4, y + 6.2);
+        y += 13;
+      };
+
+      const field = (label, value) => {
+        if (!value) return;
+        checkY(12);
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "bold");
+        doc.text(label.toUpperCase(), margin, y);
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const lines = doc.splitTextToSize(String(value), colW);
+        doc.text(lines, margin, y + 5);
+        y += 6 + (lines.length - 1) * 5 + 5;
+        // divider
+        doc.setDrawColor(241, 245, 249);
+        doc.line(margin, y - 2, margin + colW, y - 2);
+      };
+
+      const twoCol = (pairs) => {
+        pairs.forEach(([label, value]) => {
+          if (!value) return;
+          checkY(12);
+          doc.setTextColor(100, 116, 139);
+          doc.setFontSize(7.5);
+          doc.setFont("helvetica", "bold");
+          doc.text(label.toUpperCase(), margin, y);
+          doc.text(pairs[1]?.[0]?.toUpperCase() || "", margin + colW / 2, y);
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "normal");
+          doc.text(String(value || "—"), margin, y + 5);
+        });
+        y += 14;
+        doc.setDrawColor(241, 245, 249);
+        doc.line(margin, y - 2, margin + colW, y - 2);
+      };
+
+      const checkboxField = (label, value) => {
+        const vals = Array.isArray(value) ? value : (value ? value.split(", ") : []);
+        if (!vals.length) return;
+        checkY(12);
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "bold");
+        doc.text(label.toUpperCase(), margin, y);
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(vals.join(" · "), margin, y + 5);
+        y += 14;
+        doc.setDrawColor(241, 245, 249);
+        doc.line(margin, y - 2, margin + colW, y - 2);
+      };
+
+      // Sections
+      sectionHeader("Exterior");
+      field("Roof Tile Color and Type", f.roof_tile);
+      field("Stucco Color", f.stucco_color);
+      field("Stucco Finish", f.stucco_finish);
+      field("Stucco Corners", f.stucco_corners);
+      field("Patio Finish", f.patio_finish);
+      field("Window Color", f.window_color);
+      field("Garage Door Type", f.garage_door_type);
+      field("Garage Door Color", f.garage_door_color);
+      field("Front Door Type", f.front_door_type);
+      field("Exterior Door Colors", f.exterior_door_colors);
+      field("Exterior Wall Lights", f.exterior_wall_lights);
+
+      sectionHeader("Interior Finishes");
+      field("Drywall Finish", f.drywall_finish);
+      field("Ceiling Color", f.interior_ceiling);
+      field("Wall Color", f.interior_walls);
+      field("Trim Color", f.interior_trim);
+      field("Garage Color", f.interior_garage);
+      field("Interior Door Style", f.interior_door_style);
+      field("Interior Door Hardware", f.interior_door_hardware);
+
+      sectionHeader("Cabinets");
+      field("Cabinet Type", f.cabinet_type);
+      field("Cabinet Pulls", f.cabinet_pulls);
+
+      sectionHeader("Flooring");
+      field("Floor Tile", f.floor_tile);
+      field("Floor Tile Grout Color", f.floor_tile_grout);
+      field("Bedroom Floor Finish", f.bedroom_floor);
+      field("Bedroom Floor Color", f.bedroom_floor_color);
+
+      sectionHeader("Master Shower");
+      field("Wall Tile", f.master_shower_wall);
+      field("Side Walls", f.master_shower_side);
+      field("Pan Tile", f.master_shower_pan);
+      field("Wall Grout Color", f.master_shower_wall_grout);
+      field("Pan Grout Color", f.master_shower_pan_grout);
+      field("Upgrades", f.master_shower_upgrades);
+      checkboxField("Glass Options", f.master_shower_glass);
+
+      sectionHeader("Guest Tub");
+      field("Wall Tile", f.guest_tub_wall);
+      field("Wall Tile Grout Color", f.guest_tub_grout);
+      field("Upgrades", f.guest_tub_options);
+
+      sectionHeader("Fireplace");
+      field("Fireplace Size", f.fireplace_size);
+      field("Tile & Grout Color", f.fireplace_tile);
+
+      sectionHeader("Countertops");
+      field('Countertop Color', f.countertop_color);
+      field("Edge Finish", f.countertop_edge);
+      checkboxField("Upgrades", f.countertop_options);
+      field("Kitchen Backsplash", f.kitchen_backsplash);
+
+      sectionHeader("Fixtures & Appliances");
+      field("Plumbing Fixture Color", f.plumbing_fixture);
+      field("Electrical Fixture Color", f.electrical_fixture);
+      field("Appliance Type", f.appliance_type);
+      field("Appliance Color", f.appliance_color);
+
+      sectionHeader("Insulation & Garage");
+      checkboxField("Insulation Upgrades", f.insulation_options);
+      checkboxField("Garage Upgrades", f.garage_options);
+
+      // Change log on last page
+      if (log.length > 0) {
+        addPage();
+        sectionHeader("Change Log");
+        log.slice(0, 30).forEach(entry => {
+          checkY(10);
+          doc.setTextColor(100, 116, 139);
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "bold");
+          doc.text(entry.changed_by + "  ·  " + new Date(entry.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + "  " + new Date(entry.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }), margin, y);
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "normal");
+          doc.text(`${entry.field_label}: ${entry.new_value || "cleared"}`, margin, y + 5);
+          y += 12;
+          doc.setDrawColor(241, 245, 249);
+          doc.line(margin, y - 2, margin + colW, y - 2);
+        });
+      }
+
+      // Footer on each page
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Figley Contracting LLC  ·  ${lot?.address || ""}  ·  Page ${i} of ${pageCount}`, margin, 272);
+      }
+
+      doc.save(`Finishes_${(lot?.address || "property").replace(/\s+/g, "_")}.pdf`);
+    };
+    document.head.appendChild(script);
+  };
+
   const saveField = async (field, value, label) => {
     setSaving(true);
     const updated = { ...(finishes || EMPTY), [field]: value };
@@ -2787,10 +2998,15 @@ function FinishesTab({ lotId, lot, user, userRole }) {
 
   return (
     <div>
-      {/* Header with save indicator */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      {/* Header with save indicator and export */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontSize: 13, color: "#64748b" }}>Figley Contracting LLC · Arizona License #323084</div>
-        {savedMsg && <div style={{ fontSize: 12, color: G2, background: G3, border: `1px solid ${G}`, padding: "4px 12px", borderRadius: 20, fontWeight: 700 }}>{savedMsg}</div>}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {savedMsg && <div style={{ fontSize: 12, color: G2, background: G3, border: `1px solid ${G}`, padding: "4px 12px", borderRadius: 20, fontWeight: 700 }}>{savedMsg}</div>}
+          <button onClick={exportPDF} style={{ background: "#000", color: G, border: `2px solid ${G}`, borderRadius: 10, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+            ⬇ Export PDF
+          </button>
+        </div>
       </div>
 
       <Section title="Vision Board">

@@ -2915,7 +2915,7 @@ function FinishesTab({ lotId, lot, user, userRole }) {
       </Section>
 
       <Section title="Countertops">
-        <Field label="Countertop Color (same throughout / standard 4\" backsplash in bathrooms)" fieldKey="countertop_color" />
+        <Field label={'Countertop Color (same throughout / standard 4" backsplash in bathrooms)'} fieldKey="countertop_color" />
         <RadioField label="Edge Finish" fieldKey="countertop_edge" options={[
           { value: "round", label: "Round" },
           { value: "square", label: "Square" },

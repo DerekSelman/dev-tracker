@@ -606,6 +606,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
     { id: "warranties", label: "Warranties", roles: ["owner", "manager"] },
     { id: "interest", label: "Interest", roles: ["owner", "manager"] },
     { id: "investor", label: "Investor", roles: ["owner", "manager"] },
+    { id: "finishes", label: "Finishes", roles: ["owner", "manager", "contractor"] },
     { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor"] },
   ];
   const tabs = allTabs.filter(t => t.roles.includes(userRole));
@@ -623,7 +624,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
         </div>
       </div>
 
-      <div style={{ maxWidth: 1150, margin: "0 auto", padding: isMobile ? "16px" : "20px 24px" }}>
+      <div style={{ maxWidth: 1150, margin: "0 auto", padding: isMobile ? "16px 16px 100px" : "20px 24px" }}>
         <div style={{ ...cardStyle, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ fontSize: 14, color: "#1e293b", fontWeight: 600 }}>{lot.address || "This address"}</span>
@@ -737,6 +738,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
         {activeTab === "warranties" && <WarrantiesTab lotId={lot.id} lot={lot} />}
         {activeTab === "interest" && <InterestTab lotId={lot.id} />}
         {activeTab === "investor" && <InvestorTab lotId={lot.id} user={user} isOwner={isOwner} />}
+        {activeTab === "finishes" && <FinishesTab lotId={lot.id} lot={lot} user={user} userRole={userRole} />}
         {activeTab === "activity" && <ActivityLog lotId={lot.id} />}
       </div>
     </div>
@@ -2601,5 +2603,375 @@ export default function App() {
         />
       )}
     </>
+  );
+}
+
+// ============================================================
+// FINISHES TAB
+// ============================================================
+function FinishesTab({ lotId, lot, user, userRole }) {
+  const [finishes, setFinishes] = useState(null);
+  const [visionFiles, setVisionFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [log, setLog] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState("");
+
+  const INITIALS = {
+    "derekselman@gmail.com": "DS",
+    "derekdonna@yahoo.com": "DT",
+  };
+
+  const getInitials = (email) => {
+    if (INITIALS[email]) return INITIALS[email];
+    if (userRole === "micah") return "MF";
+    if (userRole === "morgan") return "MO";
+    if (userRole === "chris") return "CR";
+    return (email || "?")[0].toUpperCase();
+  };
+
+  const initials = getInitials(user.email);
+
+  const EMPTY = {
+    date: "", buyer: "",
+    roof_tile: "", stucco_color: "", stucco_finish: "", stucco_corners: "", patio_finish: "",
+    window_color: "", garage_door_type: "", garage_door_color: "", front_door_type: "", exterior_door_colors: "",
+    drywall_finish: "",
+    interior_ceiling: "", interior_walls: "", interior_trim: "", interior_garage: "",
+    cabinet_type: "", cabinet_pulls: "",
+    floor_tile: "", floor_tile_grout: "", bedroom_floor: "", bedroom_floor_color: "",
+    master_shower_wall: "", master_shower_side: "", master_shower_pan: "",
+    master_shower_wall_grout: "", master_shower_pan_grout: "", master_shower_upgrades: "",
+    master_shower_glass: "",
+    guest_tub_wall: "", guest_tub_grout: "", guest_tub_options: "",
+    fireplace_size: "", fireplace_tile: "",
+    countertop_color: "", countertop_edge: "", countertop_options: "",
+    kitchen_backsplash: "",
+    interior_door_style: "", interior_door_hardware: "",
+    plumbing_fixture: "", electrical_fixture: "", exterior_wall_lights: "",
+    appliance_type: "", appliance_color: "",
+    insulation_options: "",
+    garage_options: "",
+  };
+
+  useEffect(() => { loadFinishes(); }, [lotId]);
+
+  const loadFinishes = async () => {
+    const { data } = await supabase.from("finishes").select("*").eq("lot_id", lotId).single();
+    setFinishes(data ? data.data : { ...EMPTY });
+    const { data: logData } = await supabase.from("finishes_log").select("*").eq("lot_id", lotId).order("created_at", { ascending: false }).limit(50);
+    if (logData) setLog(logData);
+    const { data: visionData } = await supabase.from("finishes_vision").select("*").eq("lot_id", lotId).order("created_at", { ascending: false });
+    if (visionData) setVisionFiles(visionData);
+  };
+
+  const uploadVisionBoard = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    for (const file of files) {
+      const path = `finishes/${lotId}/vision/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from("lot-files").upload(path, file);
+      if (!error) {
+        await supabase.from("finishes_vision").insert({
+          lot_id: lotId, file_name: file.name, file_path: path,
+          file_type: file.type, uploaded_by: user.id, uploaded_by_initials: initials,
+        });
+      }
+    }
+    loadFinishes();
+    setUploading(false);
+  };
+
+  const deleteVisionFile = async (vf) => {
+    await supabase.storage.from("lot-files").remove([vf.file_path]);
+    await supabase.from("finishes_vision").delete().eq("id", vf.id);
+    loadFinishes();
+  };
+
+  const getFileUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path).data.publicUrl;
+
+  const saveField = async (field, value, label) => {
+    setSaving(true);
+    const updated = { ...(finishes || EMPTY), [field]: value };
+    setFinishes(updated);
+    const now = new Date().toISOString();
+    const { data: existing } = await supabase.from("finishes").select("id").eq("lot_id", lotId).single();
+    if (existing) {
+      await supabase.from("finishes").update({ data: updated, updated_at: now }).eq("lot_id", lotId);
+    } else {
+      await supabase.from("finishes").insert({ lot_id: lotId, data: updated, created_at: now, updated_at: now });
+    }
+    // Log the change
+    await supabase.from("finishes_log").insert({
+      lot_id: lotId,
+      field_label: label,
+      new_value: Array.isArray(value) ? value.join(", ") : value,
+      changed_by: initials,
+      changed_by_email: user.email,
+      created_at: now,
+    });
+    loadFinishes();
+    setSavedMsg(`${initials} · saved`);
+    setTimeout(() => setSavedMsg(""), 2000);
+    setSaving(false);
+  };
+
+  const f = finishes || EMPTY;
+
+  const Field = ({ label, fieldKey, placeholder }) => (
+    <div style={{ marginBottom: 14 }}>
+      <label style={labelStyle}>{label}</label>
+      <input
+        defaultValue={f[fieldKey] || ""}
+        onBlur={e => { if (e.target.value !== (f[fieldKey] || "")) saveField(fieldKey, e.target.value, label); }}
+        placeholder={placeholder || ""}
+        style={fieldStyle}
+      />
+    </div>
+  );
+
+  const RadioField = ({ label, fieldKey, options }) => (
+    <div style={{ marginBottom: 14 }}>
+      <label style={labelStyle}>{label}</label>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+        {options.map(opt => (
+          <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: f[fieldKey] === opt.value ? "#000" : "#fff", border: `1.5px solid ${f[fieldKey] === opt.value ? G : "#e2e8f0"}`, borderRadius: 8, padding: "7px 14px", fontSize: 13, color: f[fieldKey] === opt.value ? G : "#475569", fontFamily: "'DM Sans', sans-serif", fontWeight: f[fieldKey] === opt.value ? 700 : 400, transition: "all 0.15s" }}>
+            <input type="radio" name={fieldKey} value={opt.value} checked={f[fieldKey] === opt.value} onChange={() => saveField(fieldKey, opt.value, label)} style={{ display: "none" }} />
+            {opt.label}
+            {opt.upgrade && <span style={{ fontSize: 10, color: f[fieldKey] === opt.value ? "#fde68a" : "#94a3b8", marginLeft: 2 }}>↑</span>}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  const CheckboxGroup = ({ label, fieldKey, options }) => {
+    const current = Array.isArray(f[fieldKey]) ? f[fieldKey] : (f[fieldKey] ? f[fieldKey].split(", ") : []);
+    const toggle = (val) => {
+      const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
+      saveField(fieldKey, next, label);
+    };
+    return (
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelStyle}>{label}</label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+          {options.map(opt => {
+            const checked = current.includes(opt.value);
+            return (
+              <label key={opt.value} onClick={() => toggle(opt.value)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: checked ? "#000" : "#fff", border: `1.5px solid ${checked ? G : "#e2e8f0"}`, borderRadius: 8, padding: "7px 14px", fontSize: 13, color: checked ? G : "#475569", fontFamily: "'DM Sans', sans-serif", fontWeight: checked ? 700 : 400, transition: "all 0.15s" }}>
+                {checked ? "✓ " : ""}{opt.label}
+                {opt.upgrade && <span style={{ fontSize: 10, color: checked ? "#fde68a" : "#94a3b8", marginLeft: 2 }}>↑</span>}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const Section = ({ title, children }) => (
+    <div style={{ ...cardStyle, marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 14, paddingBottom: 10, borderBottom: `2px solid ${G3}`, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ width: 4, height: 16, background: G, borderRadius: 2 }} />
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+
+  const fmt = (ts) => {
+    const d = new Date(ts);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  };
+
+  return (
+    <div>
+      {/* Header with save indicator */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: "#64748b" }}>Figley Contracting LLC · Arizona License #323084</div>
+        {savedMsg && <div style={{ fontSize: 12, color: G2, background: G3, border: `1px solid ${G}`, padding: "4px 12px", borderRadius: 20, fontWeight: 700 }}>{savedMsg}</div>}
+      </div>
+
+      <Section title="Vision Board">
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ ...btnGreen, cursor: "pointer" }}>
+            <Icons.Upload />{uploading ? "Uploading..." : "Upload Vision Board"}
+            <input type="file" accept="image/*,application/pdf" multiple onChange={uploadVisionBoard} style={{ display: "none" }} />
+          </label>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 8 }}>Photos, PDFs, inspiration boards — any file type works.</div>
+        </div>
+        {visionFiles.length > 0 && (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10, marginBottom: 10 }}>
+              {visionFiles.filter(vf => vf.file_type && vf.file_type.startsWith("image/")).map(vf => (
+                <div key={vf.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "1", background: "#f1f5f9", cursor: "pointer" }} onClick={() => window.open(getFileUrl(vf.file_path), "_blank")}>
+                  <img src={getFileUrl(vf.file_path)} alt={vf.file_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <button onClick={e => { e.stopPropagation(); deleteVisionFile(vf); }} style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: 22, height: 22, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>✕</button>
+                </div>
+              ))}
+            </div>
+            {visionFiles.filter(vf => !vf.file_type || !vf.file_type.startsWith("image/")).map(vf => (
+              <div key={vf.id} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 10, marginBottom: 8, padding: "10px 12px" }}>
+                <Icons.File />
+                <div style={{ flex: 1, fontSize: 12, color: "#1e293b", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{vf.file_name}</div>
+                <button onClick={() => window.open(getFileUrl(vf.file_path), "_blank")} style={{ background: G3, border: `1px solid ${G}`, borderRadius: 6, color: G2, padding: "4px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Open</button>
+                <button onClick={() => deleteVisionFile(vf)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer" }}><Icons.Trash /></button>
+              </div>
+            ))}
+          </div>
+        )}
+        {visionFiles.length === 0 && <div style={{ fontSize: 13, color: "#94a3b8" }}>No files uploaded yet.</div>}
+      </Section>
+
+      <Section title="General">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Field label="Date" fieldKey="date" />
+          <Field label="Buyer" fieldKey="buyer" />
+        </div>
+      </Section>
+
+      <Section title="Exterior">
+        <Field label="Roof Tile Color and Type" fieldKey="roof_tile" />
+        <Field label="Stucco Color" fieldKey="stucco_color" />
+        <RadioField label="Stucco Finish" fieldKey="stucco_finish" options={[
+          { value: "standard_lace", label: "Standard Lace" },
+          { value: "dash", label: "Dash" },
+          { value: "synthetic", label: "Synthetic", upgrade: true },
+        ]} />
+        <RadioField label="Stucco Corners" fieldKey="stucco_corners" options={[
+          { value: "round", label: "Round (standard)" },
+          { value: "square", label: "Square", upgrade: true },
+        ]} />
+        <RadioField label="Patio Finish" fieldKey="patio_finish" options={[
+          { value: "drywall", label: "Drywall (standard)" },
+          { value: "stucco", label: "Stucco", upgrade: true },
+        ]} />
+        <Field label="Window Color" fieldKey="window_color" />
+        <Field label="Garage Door Type" fieldKey="garage_door_type" />
+        <Field label="Garage Door Color" fieldKey="garage_door_color" />
+        <Field label="Front Door Type" fieldKey="front_door_type" />
+        <Field label="Exterior Door Colors" fieldKey="exterior_door_colors" />
+        <Field label="Exterior Wall Lights" fieldKey="exterior_wall_lights" />
+      </Section>
+
+      <Section title="Interior Finishes">
+        <RadioField label="Drywall Finish" fieldKey="drywall_finish" options={[
+          { value: "hand_texture", label: "Hand Texture Interior" },
+          { value: "orange_peel_garage", label: "Orange Peel Garage" },
+          { value: "upgrade_hand_garage", label: "Upgrade Hand Texture Garage", upgrade: true },
+        ]} />
+        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontStyle: "italic" }}>Interior Colors</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Field label="Ceilings" fieldKey="interior_ceiling" />
+          <Field label="Walls" fieldKey="interior_walls" />
+          <Field label="Trim" fieldKey="interior_trim" />
+          <Field label="Garage" fieldKey="interior_garage" />
+        </div>
+        <div style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic", marginTop: 4, marginBottom: 14 }}>Typical: Ceilings Flat, Walls Eggshell, Trim Semi-Gloss, Garage Semi-Gloss</div>
+        <Field label="Interior Door Style" fieldKey="interior_door_style" />
+        <Field label="Interior Door Hardware Color" fieldKey="interior_door_hardware" />
+      </Section>
+
+      <Section title="Cabinets">
+        <Field label="Cabinet Type" fieldKey="cabinet_type" />
+        <Field label="Cabinet Pulls" fieldKey="cabinet_pulls" />
+      </Section>
+
+      <Section title="Flooring">
+        <Field label="Floor Tile" fieldKey="floor_tile" />
+        <Field label="Floor Tile Grout Color" fieldKey="floor_tile_grout" />
+        <RadioField label="Bedroom Floor Finish" fieldKey="bedroom_floor" options={[
+          { value: "carpet", label: "Carpet (standard)" },
+          { value: "tile", label: "Tile", upgrade: true },
+        ]} />
+        <Field label="Bedroom Floor Color" fieldKey="bedroom_floor_color" />
+      </Section>
+
+      <Section title="Master Shower">
+        <Field label="Wall Tile" fieldKey="master_shower_wall" />
+        <Field label="Side Walls" fieldKey="master_shower_side" />
+        <Field label="Pan Tile" fieldKey="master_shower_pan" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Field label="Wall Grout Color" fieldKey="master_shower_wall_grout" />
+          <Field label="Pan Grout Color" fieldKey="master_shower_pan_grout" />
+        </div>
+        <Field label="Upgrades" fieldKey="master_shower_upgrades" />
+        <CheckboxGroup label="Glass Options (Extra Charge)" fieldKey="master_shower_glass" options={[
+          { value: "glass_door", label: "Glass Door", upgrade: true },
+          { value: "glass_door_partition", label: "Glass Door + Partition Wall", upgrade: true },
+        ]} />
+      </Section>
+
+      <Section title="Guest Tub">
+        <Field label="Wall Tile" fieldKey="guest_tub_wall" />
+        <Field label="Wall Tile Grout Color" fieldKey="guest_tub_grout" />
+        <Field label="Upgrades" fieldKey="guest_tub_options" />
+      </Section>
+
+      <Section title="Fireplace">
+        <Field label="Fireplace Size" fieldKey="fireplace_size" />
+        <Field label="Tile & Grout Color" fieldKey="fireplace_tile" />
+      </Section>
+
+      <Section title="Countertops">
+        <Field label="Countertop Color (same throughout / standard 4\" backsplash in bathrooms)" fieldKey="countertop_color" />
+        <RadioField label="Edge Finish" fieldKey="countertop_edge" options={[
+          { value: "round", label: "Round" },
+          { value: "square", label: "Square" },
+        ]} />
+        <CheckboxGroup label="Countertop Upgrades" fieldKey="countertop_options" options={[
+          { value: "waterfall_island", label: "Waterfall Edges at Island", upgrade: true },
+          { value: "counter_backsplash", label: "Counter Material for Kitchen Backsplash", upgrade: true },
+        ]} />
+        <Field label="Kitchen Backsplash Type / Grout Color" fieldKey="kitchen_backsplash" />
+      </Section>
+
+      <Section title="Fixtures & Appliances">
+        <Field label="Plumbing Fixture Color" fieldKey="plumbing_fixture" />
+        <Field label="Electrical Fixture Color" fieldKey="electrical_fixture" />
+        <Field label="Appliance Type (microwave, stove, dishwasher)" fieldKey="appliance_type" />
+        <Field label="Appliance Color" fieldKey="appliance_color" placeholder="Stainless standard — other may be extra charge" />
+      </Section>
+
+      <Section title="Insulation">
+        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontStyle: "italic" }}>Standard: wall/ceiling batts, blow-in ceiling as necessary</div>
+        <CheckboxGroup label="Insulation Upgrades" fieldKey="insulation_options" options={[
+          { value: "spray_foam_ceiling", label: "Spray Foam Ceiling", upgrade: true },
+          { value: "spray_foam_walls", label: "Spray Foam Walls", upgrade: true },
+          { value: "batts_interior", label: "Batts on All Interior Walls", upgrade: true },
+        ]} />
+      </Section>
+
+      <Section title="Garage Options">
+        <CheckboxGroup label="Garage Upgrades" fieldKey="garage_options" options={[
+          { value: "mini_split", label: "Mini Split(s)", upgrade: true },
+          { value: "epoxy", label: "Epoxy", upgrade: true },
+          { value: "deep_sink", label: "Deep Sink / Wash Tub", upgrade: true },
+        ]} />
+      </Section>
+
+      {/* Change Log */}
+      {log.length > 0 && (
+        <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 4, height: 16, background: "#94a3b8", borderRadius: 2 }} />
+            Change Log
+          </div>
+          {log.map(entry => (
+            <div key={entry.id} style={{ display: "flex", gap: 12, padding: "8px 0", borderBottom: "1px solid #f1f5f9", alignItems: "flex-start" }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#000", border: `2px solid ${G}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: G, fontWeight: 700, flexShrink: 0 }}>
+                {entry.changed_by}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, color: "#1e293b", fontWeight: 500 }}>{entry.field_label}</div>
+                <div style={{ fontSize: 12, color: "#475569" }}>{entry.new_value || <span style={{ color: "#94a3b8", fontStyle: "italic" }}>cleared</span>}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{fmt(entry.created_at)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

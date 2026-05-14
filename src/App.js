@@ -658,6 +658,26 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
             <div><label style={labelStyle}>Notes</label><input defaultValue={local.notes} onBlur={e => saveField("notes", e.target.value)} placeholder="General notes..." style={fieldStyle} /></div>
           </div>
         )}
+        {/* Type dropdown on mobile for all users */}
+        {isMobile && (
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Type</label>
+            <select
+              value={local.lot_type || "spec"}
+              onChange={async e => {
+                const val = e.target.value;
+                setLocal(p => ({ ...p, lot_type: val }));
+                await saveField("lot_type", val);
+              }}
+              style={{ ...fieldStyle }}
+            >
+              <option value="spec">Spec Home</option>
+              <option value="customer">Customer Home</option>
+              <option value="vacant">Vacant Lot</option>
+              <option value="micah">Micah's Project</option>
+            </select>
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 4, marginBottom: 16, overflowX: "auto", paddingBottom: 4, borderBottom: "2px solid #f1f5f9" }}>
           {tabs.map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={tabBtnStyle(activeTab === tab.id)}>{tab.label}</button>)}

@@ -572,7 +572,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("phases");
 
-  const isMicah = userRole === "micah";
+  const isMicah = userRole === "micah" || userRole === "chris";
 
   const toggleMicahProject = async () => {
     const newType = local.lot_type === "micah" ? "spec" : "micah";
@@ -609,7 +609,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
     { id: "finishes", label: "Finishes", roles: ["owner", "manager", "contractor"] },
     { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor"] },
   ];
-  const effectiveRole = ["micah", "morgan", "chris"].includes(userRole) ? "contractor" : userRole;
+  const effectiveRole = ["micah", "morgan", "chris"].includes(userRole) ? "contractor" : userRole; // micah=chris=morgan=contractor access
   const tabs = allTabs.filter(t => t.roles.includes(effectiveRole));
 
   return (
@@ -2075,7 +2075,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
   const [draggedSection, setDraggedSection] = useState(null);
   const isDark = theme === "dark";
 
-  const isMicahOrChris = userRole === "micah" || userRole === "chris";
+  const isMicahOrChris = userRole === "micah" || userRole === "chris"; // same permissions
 
   useEffect(() => { loadLots(); }, []);
 
@@ -2315,18 +2315,23 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
         )}
 
         {lots.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isOwner ? "repeat(6, 1fr)" : "repeat(3, 1fr)", gap: 10, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)", gap: 10, marginBottom: 24 }}>
             {[
-              { label: "Total Lots", value: lots.length, color: "#1e293b" },
-              { label: "Spec Homes", value: specLots.length, color: "#d97706" },
-              { label: "Customer Homes", value: customerLots.length, color: "#3b82f6" },
-              { label: "Vacant Lots", value: vacantLots.length, color: "#64748b" },
-              { label: "Complete", value: lots.filter(l => getOverallProgress(getPhases(l.id)).pct === 100).length, color: G2 },
-              { label: "Overdue Phases", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#94a3b8" },
-            ].filter((_, i) => isOwner || i < 4).map(s => (
-              <div key={s.label} style={{ ...cardStyle, borderColor: s.label === "Overdue Phases" && totalOverdue > 0 ? "#fecaca" : "#e2e8f0" }}>
+              { label: "Total Lots", value: lots.length, color: "#1e293b", filter: "all" },
+              { label: "Spec Homes", value: specLots.length, color: "#d97706", filter: null },
+              { label: "Customer Homes", value: customerLots.length, color: "#3b82f6", filter: null },
+              { label: "Vacant Lots", value: vacantLots.length, color: "#64748b", filter: null },
+              { label: "Complete", value: lots.filter(l => getOverallProgress(getPhases(l.id)).pct === 100).length, color: G2, filter: "complete" },
+              { label: "Overdue Phases", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#94a3b8", filter: "overdue" },
+            ].map(s => (
+              <div key={s.label}
+                onClick={() => s.filter && setFilterBy(filterBy === s.filter ? "all" : s.filter)}
+                style={{ ...cardStyle, borderColor: s.label === "Overdue Phases" && totalOverdue > 0 ? "#fecaca" : filterBy === s.filter ? G : "#e2e8f0", cursor: s.filter ? "pointer" : "default", transition: "all 0.15s", background: filterBy === s.filter ? G3 : "#fff" }}
+                onMouseEnter={e => { if (s.filter) { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)"; }}}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)"; }}
+              >
                 <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 700, color: s.color, fontFamily: "'DM Serif Display', serif" }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{s.label}{s.filter && filterBy === s.filter ? " ✓" : ""}</div>
               </div>
             ))}
           </div>
@@ -2397,7 +2402,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
       </div>
 
       {/* CHANGE 1: Renamed to "New Address", raised above mobile nav — visible to owner and Micah */}
-      {(isOwner || userRole === "micah") && (
+      {(isOwner || userRole === "micah" || userRole === "chris") && (
         <div style={{ position: "fixed", bottom: isMobile ? 80 : 24, right: 24, zIndex: 50 }}>
           <button onClick={addLot} style={{ display: "flex", alignItems: "center", gap: 8, background: "#000", color: G, border: `2px solid ${G}`, borderRadius: isMobile ? "50%" : 12, padding: isMobile ? 16 : "12px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 4px 20px rgba(74,222,128,0.3)` }}>
             <Icons.Plus />{!isMobile && (userRole === "micah" ? "My Project" : "New Address")}

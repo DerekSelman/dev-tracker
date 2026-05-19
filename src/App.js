@@ -609,8 +609,10 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
     { id: "finishes", label: "Finishes", roles: ["owner", "manager", "contractor"] },
     { id: "activity", label: "Activity", roles: ["owner", "manager", "contractor"] },
   ];
-  const effectiveRole = ["micah", "morgan", "chris"].includes(userRole) ? "contractor" : userRole; // micah=chris=morgan=contractor access
+  const effectiveRole = ["micah", "morgan", "chris"].includes(userRole) ? "contractor" : (userRole || "contractor");
   const tabs = allTabs.filter(t => t.roles.includes(effectiveRole));
+  // Safety: if no tabs matched, default to phases
+  if (tabs.length === 0) tabs.push({ id: "phases", label: "Phases" });
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
@@ -2061,8 +2063,102 @@ function sortLots(lotList, phasesMap) {
   });
 }
 
+
+// Overdue Phases View
+function OverdueView({ onBack, onSelectLot, isMobile }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { loadOverdue(); }, []);
+
+  const loadOverdue = async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const { data: lots } = await supabase.from("lots").select("*");
+    if (!lots) { setLoading(false); return; }
+    const allOverdue = [];
+    for (const lot of lots) {
+      const { data: phases } = await supabase.from("phases").select("*").eq("lot_id", lot.id);
+      if (!phases) continue;
+      phases.forEach(phase => {
+        if (phase.projected_end && phase.projected_end < today && phase.status !== "complete") {
+          const days = Math.round((new Date() - new Date(phase.projected_end + "T00:00:00")) / 86400000);
+          allOverdue.push({ lot, phase, days });
+        }
+      });
+    }
+    // Sort by days overdue desc
+    allOverdue.sort((a, b) => b.days - a.days);
+    setItems(allOverdue);
+    setLoading(false);
+  };
+
+  const grouped = items.reduce((acc, item) => {
+    const key = item.lot.id;
+    if (!acc[key]) acc[key] = { lot: item.lot, phases: [] };
+    acc[key].phases.push(item);
+    return acc;
+  }, {});
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ background: "#000", borderBottom: "3px solid #ef4444", padding: isMobile ? "12px 16px" : "14px 24px", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={onBack} style={{ background: "transparent", border: "1.5px solid #333", color: "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Back /> Dashboard</button>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: isMobile ? 16 : 20, fontFamily: "'DM Serif Display', serif", color: "#fff" }}>Overdue Phases</div>
+            {!loading && <div style={{ fontSize: 11, color: "#64748b" }}>{items.length} phase{items.length !== 1 ? "s" : ""} overdue across {Object.keys(grouped).length} propert{Object.keys(grouped).length !== 1 ? "ies" : "y"}</div>}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "16px" : "24px", paddingBottom: 80 }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px 0", color: "#64748b" }}>Loading...</div>
+        ) : items.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+            <div style={{ fontSize: 18, color: "#1e293b", fontWeight: 600, marginBottom: 6 }}>No overdue phases!</div>
+            <div style={{ fontSize: 14, color: "#94a3b8" }}>Everything is on track.</div>
+          </div>
+        ) : (
+          Object.values(grouped).map(({ lot, phases }) => (
+            <div key={lot.id} style={{ background: "#fff", border: "1.5px solid #fecaca", borderRadius: 14, marginBottom: 16, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {/* Property header */}
+              <div onClick={() => onSelectLot(lot)} style={{ background: "#fef2f2", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", borderBottom: "1px solid #fecaca" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
+                onMouseLeave={e => e.currentTarget.style.background = "#fef2f2"}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>🏠</span>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#991b1b", fontFamily: "'DM Serif Display', serif" }}>{lot.address || "No address"}</div>
+                    <div style={{ fontSize: 11, color: "#dc2626" }}>{phases.length} overdue phase{phases.length !== 1 ? "s" : ""}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}>Open →</div>
+              </div>
+              {/* Overdue phases */}
+              {phases.map(({ phase, days }) => (
+                <div key={phase.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderBottom: "1px solid #fef2f2" }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444", flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{phase.phase_name}</div>
+                    {phase.projected_end && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Was due {new Date(phase.projected_end + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>}
+                  </div>
+                  <div style={{ background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: "#ef4444", whiteSpace: "nowrap" }}>
+                    {days}d overdue
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, onShowCalendar, onToggleNotifications, onMarkChatRead, notifications, unreadChat, isOwner, userLotIds, theme, toggleTheme, userRole }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, onShowCalendar, onShowOverdue, onToggleNotifications, onMarkChatRead, notifications, unreadChat, isOwner, userLotIds, theme, toggleTheme, userRole }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
@@ -2145,12 +2241,12 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
   // CHANGE 1: Add New Address button — Micah gets lot_type "micah" automatically
   const addLot = async () => {
     const lotType = userRole === "micah" ? "micah" : "spec";
-    const { data: lotData } = await supabase.from("lots").insert({ address: "", owner: "", budget: "", notes: "", lot_type: lotType }).select().single();
+    const { data: lotData, error } = await supabase.from("lots").insert({ address: "", owner: "", budget: "", notes: "", lot_type: lotType }).select().single();
+    if (error) { console.error("Error creating lot:", error); return; }
     if (lotData) {
       const phaseRows = PHASES.map(name => ({ lot_id: lotData.id, phase_name: name, status: STATUS.NOT_STARTED }));
       await supabase.from("phases").insert(phaseRows);
-      loadLots();
-      onSelect(lotData);
+      onSelect(lotData); // open immediately, loadLots will run on back
     }
   };
 
@@ -2317,15 +2413,15 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
         {lots.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)", gap: 10, marginBottom: 24 }}>
             {[
-              { label: "Total Lots", value: lots.length, color: "#1e293b", filter: "all" },
-              { label: "Spec Homes", value: specLots.length, color: "#d97706", filter: null },
-              { label: "Customer Homes", value: customerLots.length, color: "#3b82f6", filter: null },
-              { label: "Vacant Lots", value: vacantLots.length, color: "#64748b", filter: null },
-              { label: "Complete", value: lots.filter(l => getOverallProgress(getPhases(l.id)).pct === 100).length, color: G2, filter: "complete" },
-              { label: "Overdue Phases", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#94a3b8", filter: "overdue" },
+              { label: "Total Lots", value: lots.length, color: "#1e293b", filter: "all", action: null },
+              { label: "Spec Homes", value: specLots.length, color: "#d97706", filter: null, action: null },
+              { label: "Customer Homes", value: customerLots.length, color: "#3b82f6", filter: null, action: null },
+              { label: "Vacant Lots", value: vacantLots.length, color: "#64748b", filter: null, action: null },
+              { label: "Complete", value: lots.filter(l => getOverallProgress(getPhases(l.id)).pct === 100).length, color: G2, filter: "complete", action: null },
+              { label: "Overdue Phases", value: totalOverdue, color: totalOverdue > 0 ? "#ef4444" : "#94a3b8", filter: null, action: totalOverdue > 0 ? onShowOverdue : null },
             ].map(s => (
               <div key={s.label}
-                onClick={() => s.filter && setFilterBy(filterBy === s.filter ? "all" : s.filter)}
+                onClick={() => { if (s.action) { s.action(); } else if (s.filter) setFilterBy(filterBy === s.filter ? "all" : s.filter); }}
                 style={{ ...cardStyle, borderColor: s.label === "Overdue Phases" && totalOverdue > 0 ? "#fecaca" : filterBy === s.filter ? G : "#e2e8f0", cursor: s.filter ? "pointer" : "default", transition: "all 0.15s", background: filterBy === s.filter ? G3 : "#fff" }}
                 onMouseEnter={e => { if (s.filter) { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)"; }}}
                 onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)"; }}
@@ -2427,6 +2523,7 @@ export default function App() {
   const [showTeam, setShowTeam] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showOverdue, setShowOverdue] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadChat, setUnreadChat] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -2535,7 +2632,7 @@ export default function App() {
         textarea { font-family: 'DM Sans', sans-serif; }
       `}</style>
       {/* Mobile bottom nav */}
-      {isMobile && user && !showChat && !showTeam && !showPipeline && !showCalendar && (
+      {isMobile && user && !showChat && !showTeam && !showPipeline && !showCalendar && !showOverdue && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#000", borderTop: `2px solid ${G}`, display: "flex", zIndex: 100, fontFamily: "'DM Sans', sans-serif", paddingBottom: "env(safe-area-inset-bottom)" }}>
           {[
             { label: "Home", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); setShowCalendar(false); } },
@@ -2557,7 +2654,9 @@ export default function App() {
         </div>
       )}
 
-      {showCalendar ? (
+      {showOverdue ? (
+        <OverdueView onBack={() => setShowOverdue(false)} onSelectLot={(lot) => { setShowOverdue(false); setSelectedLot(lot); }} isMobile={isMobile} />
+      ) : showCalendar ? (
         <CalendarView onBack={() => setShowCalendar(false)} isMobile={isMobile} userRole={userRole} />
       ) : showChat ? (
         <TeamChat user={user} onBack={() => setShowChat(false)} userRole={userRole} />
@@ -2598,6 +2697,7 @@ export default function App() {
           onShowTeam={() => setShowTeam(true)}
           onShowChat={() => setShowChat(true)}
           onShowCalendar={() => setShowCalendar(true)}
+          onShowOverdue={() => setShowOverdue(true)}
           onToggleNotifications={() => setShowNotifications(p => !p)}
           onMarkChatRead={markChatRead}
           notifications={notifications}

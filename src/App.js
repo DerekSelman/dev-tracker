@@ -1034,7 +1034,7 @@ function ActionItemsDashboard({ lots, phases: allPhasesMap, user }) {
   }, {});
 
   return (
-    <div style={{ marginBottom: 24, background: "linear-gradient(135deg, #000 0%, #0f172a 100%)", border: `2px solid ${G}`, borderRadius: 16, overflow: "hidden" }}>
+    <div id="action-items-section" style={{ marginBottom: 24, background: "linear-gradient(135deg, #000 0%, #0f172a 100%)", border: `2px solid ${G}`, borderRadius: 16, overflow: "hidden" }}>
       <div onClick={() => setCollapsed(p => !p)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ background: G, borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>⚡</div>
@@ -2635,9 +2635,9 @@ export default function App() {
       {isMobile && user && !showChat && !showTeam && !showPipeline && !showCalendar && !showOverdue && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#000", borderTop: `2px solid ${G}`, display: "flex", zIndex: 100, fontFamily: "'DM Sans', sans-serif", paddingBottom: "env(safe-area-inset-bottom)" }}>
           {[
-            { label: "Home", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); setShowCalendar(false); } },
+            { label: "Home", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); setShowCalendar(false); setShowOverdue(false); } },
             { label: "Chat", icon: "💬", action: () => { setShowChat(true); markChatRead(); }, badge: unreadChat },
-            { label: "Actions", icon: "⚡", action: () => { setSelectedLot(null); setShowPipeline(false); } },
+            { label: "Actions", icon: "⚡", action: () => { setSelectedLot(null); setShowPipeline(false); setShowOverdue(false); setTimeout(() => { const el = document.getElementById("action-items-section"); if (el) el.scrollIntoView({ behavior: "smooth" }); }, 100); } },
             { label: "Calendar", icon: "📅", action: () => setShowCalendar(true) },
             { label: "Alerts", icon: "🔔", action: () => setShowNotifications(p => !p), badge: notifications.length },
           ].map(item => (
@@ -2651,6 +2651,32 @@ export default function App() {
               )}
             </button>
           ))}
+        </div>
+      )}
+
+      {showNotifications && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 300 }} onClick={() => setShowNotifications(false)}>
+          <div style={{ position: "absolute", top: 60, right: 16, width: Math.min(320, window.innerWidth - 32), background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 14, boxShadow: "0 8px 30px rgba(0,0,0,0.2)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: "12px 16px", background: "#000", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>Notifications</div>
+              <button onClick={() => { markNotificationsRead(); setShowNotifications(false); }} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>Mark all read</button>
+            </div>
+            {notifications.length === 0 ? (
+              <div style={{ padding: "24px 16px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No new notifications</div>
+            ) : (
+              <div style={{ maxHeight: 360, overflowY: "auto" }}>
+                {notifications.map(n => (
+                  <div key={n.id} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", marginTop: 5, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.4 }}>{n.message}</div>
+                      <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{new Date(n.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} at {new Date(n.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

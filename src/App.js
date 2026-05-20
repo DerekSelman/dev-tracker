@@ -623,7 +623,19 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
             <input defaultValue={local.address} onBlur={e => { setLocal(p => ({ ...p, address: e.target.value })); saveField("address", e.target.value); }} placeholder="Enter address..." style={{ background: "transparent", border: "none", color: "#fff", fontSize: isMobile ? 15 : 19, fontWeight: 700, fontFamily: "'DM Serif Display', serif", outline: "none", width: "100%" }} readOnly={!isOwner && !isMicah} />
           </div>
           {saving && <span style={{ fontSize: 12, color: "#64748b", flexShrink: 0 }}>Saving...</span>}
-          {isOwner && !isMobile && <button onClick={() => { if (window.confirm("Delete this address?")) onDelete(lot.id); }} style={{ background: "transparent", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Trash /> Delete</button>}
+          {isOwner && !isMobile && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={async () => {
+                const isArchived = local.archived;
+                await supabase.from("lots").update({ archived: !isArchived }).eq("id", lot.id);
+                setLocal(p => ({ ...p, archived: !isArchived }));
+                onUpdate();
+              }} style={{ background: "transparent", border: `1px solid ${local.archived ? "#16a34a" : "#475569"}`, color: local.archived ? "#16a34a" : "#94a3b8", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
+                {local.archived ? "✓ Archived — Restore?" : "📦 Archive"}
+              </button>
+              <button onClick={() => { if (window.confirm("Delete this address?")) onDelete(lot.id); }} style={{ background: "transparent", border: "1px solid #7f1d1d", color: "#f87171", borderRadius: 8, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}><Icons.Trash /> Delete</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -722,6 +734,18 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
               </div>
             )}
             {phases.map(phase => <PhaseRow key={phase.id} phase={phase} lotId={lot.id} onUpdate={loadPhases} isMobile={isMobile} user={user} isOwner={isOwner} />)}
+            {isOwner && isMobile && (
+              <button onClick={async () => {
+                const isArchived = local.archived;
+                if (!isArchived && !window.confirm("Archive this property? It will be hidden from the main dashboard.")) return;
+                await supabase.from("lots").update({ archived: !isArchived }).eq("id", lot.id);
+                setLocal(p => ({ ...p, archived: !isArchived }));
+                onUpdate();
+                if (!isArchived) onBack();
+              }} style={{ width: "100%", marginTop: 20, background: local.archived ? "#f0fdf4" : "#fff", border: `1.5px solid ${local.archived ? "#16a34a" : "#475569"}`, color: local.archived ? "#16a34a" : "#64748b", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                {local.archived ? "✓ Archived — Tap to Restore" : "📦 Archive This Property"}
+              </button>
+            )}
             {isMicah && isMobile && (
               <button onClick={toggleMicahProject} style={{ width: "100%", marginTop: 20, background: local.lot_type === "micah" ? G3 : "#fff", border: `1.5px solid ${local.lot_type === "micah" ? G : "#e2e8f0"}`, color: local.lot_type === "micah" ? G2 : "#64748b", borderRadius: 10, padding: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
                 {local.lot_type === "micah" ? "✓ My Project — Tap to Remove" : "+ Add to My Projects"}
@@ -2168,6 +2192,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
   const [showNotifications, setShowNotifications] = useState(false);
   // CHANGE 7: Draggable section order for Micah & Chris
   const [sectionOrder, setSectionOrder] = useState(["spec", "customer", "vacant", "micah"]);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [draggedSection, setDraggedSection] = useState(null);
   const isDark = theme === "dark";
 
@@ -2264,10 +2289,12 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
   };
 
   // CHANGE 4: Micah's Projects section (lot_type === "micah")
-  const specLots = lots.filter(l => !l.lot_type || l.lot_type === "spec" || l.lot_type === "construction");
-  const customerLots = lots.filter(l => l.lot_type === "customer");
-  const vacantLots = lots.filter(l => l.lot_type === "vacant");
-  const micahLots = lots.filter(l => l.lot_type === "micah");
+  const activeLots = lots.filter(l => !l.archived);
+  const archivedLots = lots.filter(l => l.archived);
+  const specLots = activeLots.filter(l => !l.lot_type || l.lot_type === "spec" || l.lot_type === "construction");
+  const customerLots = activeLots.filter(l => l.lot_type === "customer");
+  const vacantLots = activeLots.filter(l => l.lot_type === "vacant");
+  const micahLots = activeLots.filter(l => l.lot_type === "micah");
 
   const filtered = (lotList) => {
     const base = lotList.filter(l => {
@@ -2357,6 +2384,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
     customer: { key: "customer", label: "Customer Homes", lots: customerLots, badge: { bg: "#eff6ff", border: "#bfdbfe", color: "#1e40af" } },
     vacant: { key: "vacant", label: "Vacant Lots / Inventory", lots: vacantLots, badge: { bg: "#f1f5f9", border: "#e2e8f0", color: "#64748b" } },
     micah: { key: "micah", label: "Micah's Projects", lots: micahLots, badge: { bg: G3, border: G, color: G2 } },
+    archived: { key: "archived", label: "Completed / Archived", lots: archivedLots, badge: { bg: "#f1f5f9", border: "#e2e8f0", color: "#64748b" } },
   };
 
   return (
@@ -2494,6 +2522,22 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
               );
             })}
           </>
+        )}
+
+        {/* Completed / Archived section — always at bottom, collapsed by default */}
+        {archivedLots.length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <div onClick={() => setArchiveOpen(p => !p)} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: archiveOpen ? 12 : 0, cursor: "pointer", userSelect: "none" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b" }}>Completed / Archived</div>
+              <div style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "2px 8px", fontSize: 11, color: "#64748b", fontWeight: 700 }}>{archivedLots.length}</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginLeft: 4 }}>{archiveOpen ? "▲ Hide" : "▼ Show"}</div>
+            </div>
+            {archiveOpen && (
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 14, opacity: 0.75 }}>
+                {filtered(archivedLots).map(lot => <LotCard key={lot.id} lot={lot} showMicahToggle={false} />)}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

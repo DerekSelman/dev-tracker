@@ -25,7 +25,9 @@ export const PHASES = [
   "Electrical Trim Out",
   "Plumbing Trim Out",
   "Floor Tile & Showers",
+  "Garage Doors",
   "Trim Out",
+  "Certificate of Occupancy",
   "Cleaning",
   "Punch List",
 ];

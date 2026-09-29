@@ -664,7 +664,7 @@ function LotDetail({ lot, onBack, onDelete, onUpdate, isMobile, user, isOwner, u
               </div>
             </div>
             <div><label style={labelStyle}>Type</label>
-              <select defaultValue={local.lot_type || "spec"} onBlur={e => saveField("lot_type", e.target.value)} style={{ ...fieldStyle }}>
+              <select value={local.lot_type || "spec"} onChange={async e => { const val = e.target.value; setLocal(p => ({ ...p, lot_type: val })); await saveField("lot_type", val); }} style={{ ...fieldStyle }}>
                 <option value="spec">Spec Home</option>
                 <option value="customer">Customer Home</option>
                 <option value="vacant">Vacant Lot</option>
@@ -2322,6 +2322,33 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
     loadLots();
   };
 
+  // Move a lot between sections (e.g. Vacant Lot -> Spec Home) right from the dashboard
+  const LOT_TYPE_LABELS = { spec: "Spec Home", customer: "Customer Home", vacant: "Vacant Lot", micah: "Micah's Project" };
+  const changeLotType = async (lot, newType) => {
+    if (!newType || newType === lot.lot_type) return;
+    const { error } = await supabase.from("lots").update({ lot_type: newType }).eq("id", lot.id);
+    if (error) { alert("Could not move this address: " + error.message); return; }
+    loadLots();
+  };
+
+  // Move a lot into / out of Completed / Archived
+  const setLotArchived = async (lot, archived) => {
+    if (archived && !window.confirm(`Move "${lot.address || "this address"}" to Completed?`)) return;
+    const { error } = await supabase.from("lots").update({ archived }).eq("id", lot.id);
+    if (error) { alert("Could not update this address: " + error.message); return; }
+    if (archived) setArchiveOpen(true);
+    loadLots();
+  };
+
+  const readyToComplete = lots.filter(l => !l.archived && getPhases(l.id).length > 0 && getOverallProgress(getPhases(l.id)).pct === 100);
+  const completeAllReady = async () => {
+    if (!window.confirm(`Move ${readyToComplete.length} fully completed address${readyToComplete.length > 1 ? "es" : ""} to Completed?\n\n${readyToComplete.map(l => "• " + (l.address || "No address")).join("\n")}`)) return;
+    const { error } = await supabase.from("lots").update({ archived: true }).in("id", readyToComplete.map(l => l.id));
+    if (error) { alert("Could not update: " + error.message); return; }
+    setArchiveOpen(true);
+    loadLots();
+  };
+
   const LotCard = ({ lot, showMicahToggle }) => {
     const phases = getPhases(lot.id);
     const prog = getOverallProgress(phases);
@@ -2374,6 +2401,32 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
             {isOwner && <button onClick={e => { e.stopPropagation(); duplicateLot(lot); }} style={{ background: "transparent", border: "1px solid #e2e8f0", borderRadius: 6, color: "#94a3b8", padding: "3px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Duplicate</button>}
           </div>
         </div>
+        {isOwner && (
+          <div onClick={e => e.stopPropagation()} style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f1f5f9", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            {!lot.archived && (
+              <select
+                value=""
+                onChange={e => changeLotType(lot, e.target.value)}
+                style={{ flex: 1, minWidth: 130, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, color: "#475569", padding: "5px 8px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}
+              >
+                <option value="" disabled>Move to...</option>
+                {Object.entries(LOT_TYPE_LABELS).filter(([k]) => k !== (lot.lot_type === "construction" || !lot.lot_type ? "spec" : lot.lot_type)).map(([k, label]) => (
+                  <option key={k} value={k}>{label}</option>
+                ))}
+              </select>
+            )}
+            {!lot.archived && prog.total > 0 && prog.pct === 100 && (
+              <button onClick={() => setLotArchived(lot, true)} style={{ background: G3, border: `1px solid ${G}`, borderRadius: 6, color: G2, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, whiteSpace: "nowrap" }}>
+                ✓ Move to Completed
+              </button>
+            )}
+            {lot.archived && (
+              <button onClick={() => setLotArchived(lot, false)} style={{ background: "transparent", border: "1px solid #e2e8f0", borderRadius: 6, color: "#64748b", padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                Restore to Active
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -2482,6 +2535,16 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
             {[["all","All"],["inprogress","Active"],["overdue","Overdue"],["complete","Done"],["notstarted","Not Started"]].map(([val,lbl]) => (
               <button key={val} onClick={() => setFilterBy(val)} style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${filterBy === val ? G : "#e2e8f0"}`, background: filterBy === val ? G3 : "#fff", color: filterBy === val ? G2 : "#64748b", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: filterBy === val ? 700 : 500, whiteSpace: "nowrap", flexShrink: 0 }}>{lbl}</button>
             ))}
+          </div>
+        )}
+
+        {isOwner && readyToComplete.length > 0 && (
+          <div style={{ background: G3, border: `1.5px solid ${G}`, borderRadius: 12, padding: "12px 16px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 13, color: "#1e293b" }}>
+              <strong>{readyToComplete.length} address{readyToComplete.length > 1 ? "es are" : " is"} 100% complete</strong>
+              <span style={{ color: "#64748b" }}> and still showing as active.</span>
+            </div>
+            <button onClick={completeAllReady} style={{ ...btnGreen, padding: "8px 16px", fontSize: 13 }}>✓ Move All to Completed</button>
           </div>
         )}
 

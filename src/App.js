@@ -5,6 +5,7 @@ import InterestTab from "./components/InterestTab";
 import PhaseChecklist from "./components/PhaseChecklist";
 import PunchListTab from "./components/PunchListTab";
 import { printPunchList } from "./components/printPunchList";
+import { uploadThumbnail } from "./thumbs";
 
 const OWNER_EMAIL = "derekselman@gmail.com";
 
@@ -206,6 +207,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
       const path = `photos/${lotId}/${phase.id}/${Date.now()}_${file.name}`;
       const { error } = await supabase.storage.from("lot-files").upload(path, file);
       if (!error) {
+        await uploadThumbnail(file, path);
         await supabase.from("phase_photos").insert({ lot_id: lotId, phase_id: phase.id, file_name: file.name, file_path: path, uploaded_by: user.id, uploaded_by_email: user.email });
         await logActivity("photo_upload", `Photo uploaded to ${phase.phase_name} by ${user.email}`);
       }

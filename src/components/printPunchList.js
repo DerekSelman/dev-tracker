@@ -1,4 +1,5 @@
 import { supabase } from "../supabase";
+import { thumbPath } from "../thumbs";
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -117,7 +118,7 @@ ${done.length ? `<table>${done.map((i, n) => row(i, n + 1)).join("")}</table>` :
 
 <h2>Photos (${photos.length})</h2>
 ${photos.length ? `<div class="photos">${photos.map((p, n) => `
-  <div class="photo"><img src="${esc(photoUrl(p.file_path))}" alt="">
+  <div class="photo"><img src="${esc(photoUrl(thumbPath(p.file_path)))}" data-full="${esc(photoUrl(p.file_path))}" alt="">
     <div class="cap">Photo ${n + 1}${p.caption ? " &middot; " + esc(p.caption) : ""} &middot; ${esc(fmtDate(p.created_at))}</div></div>`).join("")}</div>` : `<div class="empty">No punch list photos.</div>`}
 
 <div class="sign"><div>Homeowner signature / date</div><div>Contractor signature / date</div></div>
@@ -129,8 +130,13 @@ ${photos.length ? `<div class="photos">${photos.map((p, n) => `
     function go() { if (fired) return; fired = true; setTimeout(function () { window.print(); }, 300); }
     if (!left) return go();
     imgs.forEach(function (im) {
-      if (im.complete) { if (--left === 0) go(); }
-      else { im.onload = im.onerror = function () { if (--left === 0) go(); }; }
+      var done = function () { if (--left === 0) go(); };
+      im.onload = done;
+      im.onerror = function () {
+        var full = im.getAttribute("data-full");
+        if (full && im.src !== full) { im.onerror = done; im.src = full; } else { done(); }
+      };
+      if (im.complete) { if (im.naturalWidth) { im.onload = null; im.onerror = null; done(); } else { im.onerror(); } }
     });
     setTimeout(go, 8000);
   })();

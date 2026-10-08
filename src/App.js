@@ -4,6 +4,7 @@ import { PHASES, STATUS, STATUS_CONFIG, G, G2, G3, getOverallProgress, getCurren
 import InterestTab from "./components/InterestTab";
 import PhaseChecklist from "./components/PhaseChecklist";
 import PunchListTab from "./components/PunchListTab";
+import { printPunchList } from "./components/printPunchList";
 
 const OWNER_EMAIL = "derekselman@gmail.com";
 
@@ -1929,6 +1930,12 @@ function PunchListWithSignoff({ lotId, lot, user, isOwner }) {
 
   return (
     <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button onClick={() => printPunchList(lot)} title="Print or save as PDF (includes photos)" style={{ background: "#000", color: G, border: `1.5px solid ${G}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print / PDF
+        </button>
+      </div>
       {isOwner && (
         <div style={{ ...cardStyle, marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 10 }}>Homeowner Sign-off — Figley Contracting LLC</div>

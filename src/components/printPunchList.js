@@ -21,6 +21,10 @@ export async function printPunchList(lot) {
 
   try {
     const lotId = lot.id;
+    if (lot.address === undefined) {
+      const { data: full } = await supabase.from("lots").select("id, address, owner").eq("id", lotId).single();
+      if (full) lot = full;
+    }
     const [{ data: punchItems }, { data: phases }] = await Promise.all([
       supabase.from("punch_list").select("*").eq("lot_id", lotId).order("created_at"),
       supabase.from("phases").select("id, phase_name").eq("lot_id", lotId).eq("phase_name", "Punch List"),

@@ -270,7 +270,15 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
               <div><div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>End Date</div><input type="date" defaultValue={phase.projected_end || ""} onBlur={e => updateField("projected_end", e.target.value)} style={dateInputStyle} /></div>
             </div>
             <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", marginBottom: 10 }} />
-            <PhaseChecklist phaseId={phase.id} lotId={lotId} user={user} onChecklistStatus={setChecklistStatus} phaseName={phase.phase_name} />
+            {phase.phase_name === "Punch List" && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+              <button onClick={e => { e.stopPropagation(); printPunchList({ id: lotId }); }} title="Print or save as PDF (includes photos)" style={{ background: "#000", color: G, border: `1.5px solid ${G}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Print / PDF
+              </button>
+            </div>
+          )}
+          <PhaseChecklist phaseId={phase.id} lotId={lotId} user={user} onChecklistStatus={setChecklistStatus} phaseName={phase.phase_name} />
             <div style={{ display: "flex", gap: 8, marginTop: 12, marginBottom: photos.length > 0 ? 10 : 0 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, background: "#000", border: `1.5px solid ${G}`, borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 13, color: G, flex: 1, justifyContent: "center", fontWeight: 600 }}>
                 <Icons.Camera />{uploading ? "Uploading..." : "Take Photo"}
@@ -325,6 +333,14 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
       {expanded && (
         <div style={{ background: "#f8fafc", border: `1.5px solid ${sc.border}`, borderTop: "none", borderRadius: "0 0 10px 10px", padding: "12px 14px" }}>
           <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes for this phase..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", marginBottom: 12 }} />
+          {phase.phase_name === "Punch List" && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+              <button onClick={e => { e.stopPropagation(); printPunchList({ id: lotId }); }} title="Print or save as PDF (includes photos)" style={{ background: "#000", color: G, border: `1.5px solid ${G}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Print / PDF
+              </button>
+            </div>
+          )}
           <PhaseChecklist phaseId={phase.id} lotId={lotId} user={user} onChecklistStatus={setChecklistStatus} phaseName={phase.phase_name} />
           {photos.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 6, marginTop: 12 }}>

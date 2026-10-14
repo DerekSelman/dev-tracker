@@ -16,6 +16,7 @@ const CATEGORY = (action = "") => {
   if (action.startsWith("loan")) return "Loans";
   if (action.startsWith("warranty")) return "Warranty";
   if (action.startsWith("prospect")) return "Pipeline";
+  if (action.startsWith("idea")) return "Ideas";
   return "Other";
 };
 

@@ -6,6 +6,7 @@ import PhaseChecklist from "./components/PhaseChecklist";
 import PunchListTab from "./components/PunchListTab";
 import { openPrintOptions } from "./components/printPunchList";
 import GlobalActivity from "./components/GlobalActivity";
+import IdeaBoard from "./components/IdeaBoard";
 import { uploadThumbnail } from "./thumbs";
 
 const OWNER_EMAIL = "derekselman@gmail.com";
@@ -2207,7 +2208,7 @@ function OverdueView({ onBack, onSelectLot, isMobile }) {
 }
 
 // Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowActivity, onShowChat, onShowCalendar, onShowOverdue, onToggleNotifications, onMarkChatRead, notifications, unreadChat, isOwner, userLotIds, theme, toggleTheme, userRole }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowActivity, onShowIdeas, onShowChat, onShowCalendar, onShowOverdue, onToggleNotifications, onMarkChatRead, notifications, unreadChat, isOwner, userLotIds, theme, toggleTheme, userRole }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
@@ -2506,6 +2507,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
             <button onClick={onShowTeam} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>👥 Team</button>
             <button onClick={onShowCalendar} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>📅 Calendar</button>
             <button onClick={onShowActivity} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>🕒 Activity</button>
+            <button onClick={onShowIdeas} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>💡 Ideas</button>
             {/* CHANGE 2: Search Address placeholder */}
             <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search Address..." style={{ width: "100%", background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, color: isDark ? "#f1f5f9" : "#1e293b", fontSize: 13, padding: "8px 14px 8px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
@@ -2655,6 +2657,7 @@ export default function App() {
   const [theme, setTheme] = useState("light");
   const [showTeam, setShowTeam] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
+  const [showIdeas, setShowIdeas] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
@@ -2766,10 +2769,10 @@ export default function App() {
         textarea { font-family: 'DM Sans', sans-serif; }
       `}</style>
       {/* Mobile bottom nav */}
-      {isMobile && user && !showChat && !showTeam && !showPipeline && !showCalendar && !showOverdue && !showActivity && (
+      {isMobile && user && !showChat && !showTeam && !showPipeline && !showCalendar && !showOverdue && !showActivity && !showIdeas && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#000", borderTop: `2px solid ${G}`, display: "flex", zIndex: 100, fontFamily: "'DM Sans', sans-serif", paddingBottom: "env(safe-area-inset-bottom)" }}>
           {[
-            { label: "Home", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); setShowCalendar(false); setShowOverdue(false); setShowActivity(false); } },
+            { label: "Home", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); setShowCalendar(false); setShowOverdue(false); setShowActivity(false); setShowIdeas(false); } },
             { label: "Chat", icon: "💬", action: () => { setShowChat(true); markChatRead(); }, badge: unreadChat },
             { label: "Actions", icon: "⚡", action: () => { setSelectedLot(null); setShowPipeline(false); setShowOverdue(false); setTimeout(() => { const el = document.getElementById("action-items-section"); if (el) el.scrollIntoView({ behavior: "smooth" }); }, 100); } },
             { label: "Calendar", icon: "📅", action: () => setShowCalendar(true) },
@@ -2814,7 +2817,9 @@ export default function App() {
         </div>
       )}
 
-      {showActivity ? (
+      {showIdeas ? (
+        <IdeaBoard onBack={() => setShowIdeas(false)} user={user} isMobile={isMobile} />
+      ) : showActivity ? (
         <GlobalActivity onBack={() => setShowActivity(false)} onSelectLot={(lot) => { setShowActivity(false); setSelectedLot(lot); }} isMobile={isMobile} />
       ) : showOverdue ? (
         <OverdueView onBack={() => setShowOverdue(false)} onSelectLot={(lot) => { setShowOverdue(false); setSelectedLot(lot); }} isMobile={isMobile} />
@@ -2858,6 +2863,7 @@ export default function App() {
           onShowPipeline={() => setShowPipeline(true)}
           onShowTeam={() => setShowTeam(true)}
           onShowActivity={() => setShowActivity(true)}
+          onShowIdeas={() => setShowIdeas(true)}
           onShowChat={() => setShowChat(true)}
           onShowCalendar={() => setShowCalendar(true)}
           onShowOverdue={() => setShowOverdue(true)}

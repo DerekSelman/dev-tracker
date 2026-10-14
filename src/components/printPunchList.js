@@ -55,7 +55,6 @@ export async function printPunchList(lot) {
     }
     const open = items.filter(i => !i.completed);
     const done = items.filter(i => i.completed);
-    const pct = items.length ? Math.round((done.length / items.length) * 100) : 0;
 
     const row = (i, n) => `
       <tr>
@@ -103,18 +102,13 @@ export async function printPunchList(lot) {
   <div class="sub" style="text-align:right">Figley Contracting LLC<br>Printed ${esc(fmtDate(new Date().toISOString()))}</div>
 </div>
 <div class="stats">
-  <div><b>${items.length}</b> items</div>
-  <div><b>${open.length}</b> open</div>
-  <div><b>${done.length}</b> completed</div>
-  <div><b>${pct}%</b> complete</div>
+  <div><b>${open.length}</b> open items</div>
+  <div style="color:#94a3b8">(${done.length} completed item${done.length === 1 ? "" : "s"} not shown)</div>
   <div><b>${photos.length}</b> photos</div>
 </div>
 
 <h2>Open Items (${open.length})</h2>
 ${open.length ? `<table class="open">${open.map((i, n) => row(i, n + 1).replace('<td class="box"></td>', '<td class="box"><span class="chk"></span></td>')).join("")}</table>` : `<div class="empty">No open items.</div>`}
-
-<h2>Completed (${done.length})</h2>
-${done.length ? `<table>${done.map((i, n) => row(i, n + 1)).join("")}</table>` : `<div class="empty">No completed items yet.</div>`}
 
 <h2>Photos (${photos.length})</h2>
 ${photos.length ? `<div class="photos">${photos.map((p, n) => `

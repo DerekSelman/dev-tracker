@@ -11,7 +11,7 @@ const photoUrl = (path) => supabase.storage.from("lot-files").getPublicUrl(path)
 
 // Opens a print-ready page (punch list + photos). From the print dialog the user
 // can print it or choose "Save as PDF".
-export async function printPunchList(lot) {
+export async function printPunchList(lot, { includePhotos = true } = {}) {
   // Open the window synchronously so browsers (esp. iPhone Safari) don't block the popup.
   const w = window.open("", "_blank");
   if (!w) {
@@ -37,7 +37,9 @@ export async function printPunchList(lot) {
     if (punchPhase) {
       const [{ data: c }, { data: p }] = await Promise.all([
         supabase.from("phase_checklist").select("*").eq("phase_id", punchPhase.id).order("created_at"),
-        supabase.from("phase_photos").select("*").eq("phase_id", punchPhase.id).order("created_at"),
+        includePhotos
+          ? supabase.from("phase_photos").select("*").eq("phase_id", punchPhase.id).order("created_at")
+          : Promise.resolve({ data: [] }),
       ]);
       checklist = c || [];
       photos = p || [];
@@ -104,17 +106,18 @@ export async function printPunchList(lot) {
 <div class="stats">
   <div><b>${open.length}</b> open items</div>
   <div style="color:#94a3b8">(${done.length} completed item${done.length === 1 ? "" : "s"} not shown)</div>
-  <div><b>${photos.length}</b> photos</div>
+  ${includePhotos ? `<div><b>${photos.length}</b> photos</div>` : ""}
 </div>
 
 <h2>Open Items (${open.length})</h2>
 ${open.length ? `<table class="open">${open.map((i, n) => row(i, n + 1).replace('<td class="box"></td>', '<td class="box"><span class="chk"></span></td>')).join("")}</table>` : `<div class="empty">No open items.</div>`}
 
-<h2>Photos (${photos.length})</h2>
-${photos.length ? `<div class="photos">${photos.map((p, n) => `
-  <div class="photo"><img src="${esc(photoUrl(thumbPath(p.file_path)))}" data-full="${esc(photoUrl(p.file_path))}" alt="">
-    <div class="cap">Photo ${n + 1}${p.caption ? " &middot; " + esc(p.caption) : ""} &middot; ${esc(fmtDate(p.created_at))}</div></div>`).join("")}</div>` : `<div class="empty">No punch list photos.</div>`}
+${includePhotos ? `<h2>Photos (\${photos.length})</h2>
+\${photos.length ? \`<div class="photos">\${photos.map((p, n) => \`
+  <div class="photo"><img src="\${esc(photoUrl(thumbPath(p.file_path)))}" data-full="\${esc(photoUrl(p.file_path))}" alt="">
+    <div class="cap">Photo \${n + 1}\${p.caption ? " &middot; " + esc(p.caption) : ""} &middot; \${esc(fmtDate(p.created_at))}</div></div>\`).join("")}</div>\` : \`<div class="empty">No punch list photos.</div>\`}
 
+` : ""}
 <div class="sign"><div>Homeowner signature / date</div><div>Contractor signature / date</div></div>
 
 <script>
@@ -143,4 +146,32 @@ ${photos.length ? `<div class="photos">${photos.map((p, n) => `
   } catch (e) {
     w.document.body.innerHTML = `<p style="font-family:Arial,sans-serif;padding:24px;color:#ef4444">Could not build the punch list: ${esc(e.message)}</p>`;
   }
+}
+
+// Small pop-up asking whether to include photos, then prints.
+export function openPrintOptions(lot) {
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;font-family:'DM Sans',Arial,sans-serif";
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.25)">
+      <div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:4px">Print Punch List</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:16px">Only open (unchecked) items are printed.</div>
+      <label style="display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:14px;color:#1e293b">
+        <input type="checkbox" id="pp-photos" checked style="width:18px;height:18px;accent-color:#16a34a" />
+        Include photos
+      </label>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button id="pp-cancel" style="flex:1;background:#fff;border:1.5px solid #e2e8f0;color:#64748b;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>
+        <button id="pp-go" style="flex:1;background:#000;border:1.5px solid #22c55e;color:#22c55e;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">Print / PDF</button>
+      </div>
+    </div>`;
+  const close = () => overlay.remove();
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  document.body.appendChild(overlay);
+  overlay.querySelector("#pp-cancel").onclick = close;
+  overlay.querySelector("#pp-go").onclick = () => {
+    const includePhotos = overlay.querySelector("#pp-photos").checked;
+    close();
+    printPunchList(lot, { includePhotos });
+  };
 }

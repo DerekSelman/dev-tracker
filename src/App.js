@@ -4,7 +4,8 @@ import { PHASES, STATUS, STATUS_CONFIG, G, G2, G3, getOverallProgress, getCurren
 import InterestTab from "./components/InterestTab";
 import PhaseChecklist from "./components/PhaseChecklist";
 import PunchListTab from "./components/PunchListTab";
-import { printPunchList } from "./components/printPunchList";
+import { openPrintOptions } from "./components/printPunchList";
+import GlobalActivity from "./components/GlobalActivity";
 import { uploadThumbnail } from "./thumbs";
 
 const OWNER_EMAIL = "derekselman@gmail.com";
@@ -176,9 +177,8 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
     if (data) setPhotos(data);
   };
 
-  const logActivity = async (action, details) => {
-    await supabase.from("activity_log").insert({ lot_id: lotId, phase_id: phase.id, user_id: user.id, user_email: user.email, action, details });
-  };
+  // Activity is now recorded automatically by the database (see supabase/migrations/activity_triggers.sql)
+  const logActivity = async () => {};
 
   const cycleStatus = async () => {
     const order = [STATUS.NOT_STARTED, STATUS.IN_PROGRESS, STATUS.COMPLETE];
@@ -274,7 +274,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
             <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", marginBottom: 10 }} />
             {phase.phase_name === "Punch List" && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-              <button onClick={e => { e.stopPropagation(); printPunchList({ id: lotId }); }} title="Print or save as PDF (includes photos)" style={{ background: "#000", color: G, border: `1.5px solid ${G}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+              <button onClick={e => { e.stopPropagation(); openPrintOptions({ id: lotId }); }} title="Print or save as PDF (includes photos)" style={{ background: "#000", color: G, border: `1.5px solid ${G}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                 Print / PDF
               </button>
@@ -337,7 +337,7 @@ function PhaseRow({ phase, lotId, onUpdate, isMobile, user, isOwner }) {
           <input defaultValue={phase.notes || ""} onBlur={e => updateField("notes", e.target.value)} placeholder="Notes for this phase..." style={{ ...fieldStyle, fontSize: 13, padding: "8px 10px", marginBottom: 12 }} />
           {phase.phase_name === "Punch List" && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-              <button onClick={e => { e.stopPropagation(); printPunchList({ id: lotId }); }} title="Print or save as PDF (includes photos)" style={{ background: "#000", color: G, border: `1.5px solid ${G}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+              <button onClick={e => { e.stopPropagation(); openPrintOptions({ id: lotId }); }} title="Print or save as PDF (includes photos)" style={{ background: "#000", color: G, border: `1.5px solid ${G}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                 Print / PDF
               </button>
@@ -1949,7 +1949,7 @@ function PunchListWithSignoff({ lotId, lot, user, isOwner }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-        <button onClick={() => printPunchList(lot)} title="Print or save as PDF (includes photos)" style={{ background: "#000", color: G, border: `1.5px solid ${G}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+        <button onClick={() => openPrintOptions(lot)} title="Print or save as PDF (includes photos)" style={{ background: "#000", color: G, border: `1.5px solid ${G}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Print / PDF
         </button>
@@ -2207,7 +2207,7 @@ function OverdueView({ onBack, onSelectLot, isMobile }) {
 }
 
 // Dashboard
-function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowChat, onShowCalendar, onShowOverdue, onToggleNotifications, onMarkChatRead, notifications, unreadChat, isOwner, userLotIds, theme, toggleTheme, userRole }) {
+function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShowTeam, onShowActivity, onShowChat, onShowCalendar, onShowOverdue, onToggleNotifications, onMarkChatRead, notifications, unreadChat, isOwner, userLotIds, theme, toggleTheme, userRole }) {
   const [lots, setLots] = useState([]);
   const [filterBy, setFilterBy] = useState("all");
   const [lotPhases, setLotPhases] = useState({});
@@ -2505,6 +2505,7 @@ function Dashboard({ user, onSelect, onSignOut, isMobile, onShowPipeline, onShow
             <button onClick={onShowPipeline} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}><Icons.Map /> Prospective Pipeline</button>
             <button onClick={onShowTeam} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>👥 Team</button>
             <button onClick={onShowCalendar} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>📅 Calendar</button>
+            <button onClick={onShowActivity} style={{ ...btnOutline, padding: "8px 18px", fontSize: 13 }}>🕒 Activity</button>
             {/* CHANGE 2: Search Address placeholder */}
             <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search Address..." style={{ width: "100%", background: isDark ? "#1e293b" : "#fff", border: `1.5px solid ${isDark ? "#334155" : "#e2e8f0"}`, borderRadius: 10, color: isDark ? "#f1f5f9" : "#1e293b", fontSize: 13, padding: "8px 14px 8px 36px", fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
@@ -2653,6 +2654,7 @@ export default function App() {
   const [userRole, setUserRole] = useState("owner");
   const [theme, setTheme] = useState("light");
   const [showTeam, setShowTeam] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
@@ -2764,10 +2766,10 @@ export default function App() {
         textarea { font-family: 'DM Sans', sans-serif; }
       `}</style>
       {/* Mobile bottom nav */}
-      {isMobile && user && !showChat && !showTeam && !showPipeline && !showCalendar && !showOverdue && (
+      {isMobile && user && !showChat && !showTeam && !showPipeline && !showCalendar && !showOverdue && !showActivity && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#000", borderTop: `2px solid ${G}`, display: "flex", zIndex: 100, fontFamily: "'DM Sans', sans-serif", paddingBottom: "env(safe-area-inset-bottom)" }}>
           {[
-            { label: "Home", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); setShowCalendar(false); setShowOverdue(false); } },
+            { label: "Home", icon: "🏗️", action: () => { setSelectedLot(null); setShowPipeline(false); setShowTeam(false); setShowCalendar(false); setShowOverdue(false); setShowActivity(false); } },
             { label: "Chat", icon: "💬", action: () => { setShowChat(true); markChatRead(); }, badge: unreadChat },
             { label: "Actions", icon: "⚡", action: () => { setSelectedLot(null); setShowPipeline(false); setShowOverdue(false); setTimeout(() => { const el = document.getElementById("action-items-section"); if (el) el.scrollIntoView({ behavior: "smooth" }); }, 100); } },
             { label: "Calendar", icon: "📅", action: () => setShowCalendar(true) },
@@ -2812,7 +2814,9 @@ export default function App() {
         </div>
       )}
 
-      {showOverdue ? (
+      {showActivity ? (
+        <GlobalActivity onBack={() => setShowActivity(false)} onSelectLot={(lot) => { setShowActivity(false); setSelectedLot(lot); }} isMobile={isMobile} />
+      ) : showOverdue ? (
         <OverdueView onBack={() => setShowOverdue(false)} onSelectLot={(lot) => { setShowOverdue(false); setSelectedLot(lot); }} isMobile={isMobile} />
       ) : showCalendar ? (
         <CalendarView onBack={() => setShowCalendar(false)} isMobile={isMobile} userRole={userRole} />
@@ -2853,6 +2857,7 @@ export default function App() {
           isMobile={isMobile}
           onShowPipeline={() => setShowPipeline(true)}
           onShowTeam={() => setShowTeam(true)}
+          onShowActivity={() => setShowActivity(true)}
           onShowChat={() => setShowChat(true)}
           onShowCalendar={() => setShowCalendar(true)}
           onShowOverdue={() => setShowOverdue(true)}

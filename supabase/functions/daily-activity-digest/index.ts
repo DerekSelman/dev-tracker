@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: rows, error } = await supabase
     .from("activity_log")
-    .select("created_at, action, details, user_email, lot_id, phase_id, lots(address), phases(phase_name)")
+    .select("created_at, action, details, user_email, lot_id, phase_id, address, lots(address), phases(phase_name)")
     .gte("created_at", since)
     .order("created_at", { ascending: true });
   if (error) return new Response("Query failed: " + error.message, { status: 500 });
@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
   const groups = new Map<string, typeof items>();
   for (const r of items) {
     // deno-lint-ignore no-explicit-any
-    const addr = ((r as any).lots?.address || "Unknown address").trim();
+    const addr = ((r as any).lots?.address || (r as any).address || "Unknown address").trim();
     if (!groups.has(addr)) groups.set(addr, []);
     groups.get(addr)!.push(r);
   }
